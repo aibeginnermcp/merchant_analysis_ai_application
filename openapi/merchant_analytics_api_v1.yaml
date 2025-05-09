@@ -1,0 +1,2417 @@
+openapi: 3.0.0
+info:
+  title: 商户智能经营分析平台 API
+  description: |
+    提供商户经营数据的智能分析API接口，包括：
+    - 身份认证与授权
+    - 综合分析报告
+    - 现金流预测分析
+    - 成本穿透分析
+    - 财务合规检查
+    - 模拟数据生成
+  version: 1.0.0
+  contact:
+    name: 技术支持团队
+    email: support@merchant-analytics.example.com
+
+servers:
+  - url: https://localhost:8080
+    description: 本地开发环境
+  - url: https://api.merchant-analytics.example.com
+    description: 生产环境
+
+tags:
+  - name: auth
+    description: 身份认证与授权相关接口
+  - name: integrated
+    description: 综合分析相关接口
+  - name: cashflow
+    description: 现金流预测相关接口
+  - name: cost
+    description: 成本穿透分析相关接口
+  - name: compliance
+    description: 财务合规检查相关接口
+  - name: data
+    description: 数据模拟与管理相关接口
+  - name: merchant
+    description: 商户管理相关接口
+  - name: report
+    description: 报表生成与管理相关接口
+
+paths:
+  /api/v1/token:
+    post:
+      tags:
+        - auth
+      summary: 获取访问令牌
+      description: 通过用户名和密码获取用于API认证的JWT令牌
+      operationId: getToken
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  description: 用户名
+                password:
+                  type: string
+                  description: 密码
+                  format: password
+      responses:
+        '200':
+          description: 认证成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: 认证失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - auth
+      summary: 刷新访问令牌
+      description: 使用刷新令牌获取新的访问令牌
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+                  description: 刷新令牌
+      responses:
+        '200':
+          description: 令牌刷新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: 令牌无效或已过期
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/users/me:
+    get:
+      tags:
+        - auth
+      summary: 获取当前用户信息
+      description: 获取当前登录用户的详细信息
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/integrated-analysis:
+    post:
+      tags:
+        - integrated
+      summary: 获取综合分析报告
+      description: |
+        获取商户的综合分析报告，包括现金流预测、成本穿透和合规性检查
+      operationId: getIntegratedAnalysis
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegratedAnalysisRequest'
+      responses:
+        '200':
+          description: 分析成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegratedAnalysisResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/cashflow/predict:
+    post:
+      tags:
+        - cashflow
+      summary: 预测现金流
+      description: |
+        对指定商户在给定时间范围内的现金流进行预测。
+        
+        预测内容包括：
+        - 现金流入预测
+        - 现金流出预测
+        - 净现金流预测
+        - 置信区间
+        - 风险评估
+        - 预警信息
+      operationId: predictCashflow
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CashflowPredictionRequest'
+      responses:
+        '200':
+          description: 预测成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashflowPredictionResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/cashflow/pattern/{merchant_id}:
+    get:
+      tags:
+        - cashflow
+      summary: 分析现金流模式
+      description: |
+        分析指定商户的现金流模式。
+        
+        分析内容包括：
+        - 周期性模式
+        - 季节性特征
+        - 趋势特征
+        - 异常模式
+      operationId: analyzeCashflowPattern
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: merchant_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 商户ID
+        - name: lookback_days
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 365
+          description: 回溯天数
+      responses:
+        '200':
+          description: 分析成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatternAnalysisResponse'
+        '404':
+          description: 未找到商户数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/cashflow/simulate/{merchant_id}:
+    post:
+      tags:
+        - cashflow
+      summary: 模拟现金流场景
+      description: |
+        模拟不同场景下的现金流变化。
+        
+        支持的场景类型：
+        - 收入变化
+        - 支出变化
+        - 时间变化
+        - 概率变化
+      operationId: simulateCashflowScenario
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: merchant_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 商户ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulationRequest'
+      responses:
+        '200':
+          description: 模拟成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/cost/analyze:
+    post:
+      tags:
+        - cost
+      summary: 成本穿透分析
+      description: |
+        分析指定商户在给定时间范围内的成本结构。
+        
+        分析内容包括：
+        - 成本类别明细
+        - 成本趋势分析
+        - 成本优化建议
+        - 同行业对比
+      operationId: analyzeCost
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CostAnalysisRequest'
+      responses:
+        '200':
+          description: 分析成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CostAnalysisResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/cost/benchmark/{industry}:
+    get:
+      tags:
+        - cost
+      summary: 获取行业成本基准
+      description: 获取指定行业的成本结构基准数据
+      operationId: getCostBenchmark
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: industry
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 行业类别(restaurant/retail/service/manufacturing)
+        - name: business_size
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [small, medium, large]
+          description: 企业规模
+        - name: region
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 地区
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CostBenchmarkResponse'
+        '404':
+          description: 未找到行业数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/cost/optimize/{merchant_id}:
+    get:
+      tags:
+        - cost
+      summary: 获取成本优化建议
+      description: 获取指定商户的成本优化建议
+      operationId: getCostOptimizationSuggestions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: merchant_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 商户ID
+        - name: optimization_target
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [overall, labor, material, operation, marketing]
+          description: 优化目标类别
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CostOptimizationResponse'
+        '404':
+          description: 未找到商户数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/compliance/check:
+    post:
+      tags:
+        - compliance
+      summary: 财务合规检查
+      description: |
+        对指定商户在给定时间范围内的财务数据进行合规性检查。
+        
+        检查内容包括：
+        - 会计规范性检查
+        - 税务合规性检查
+        - 许可证合规性检查
+        - 劳动法规合规性检查
+      operationId: checkCompliance
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComplianceCheckRequest'
+      responses:
+        '200':
+          description: 检查成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceCheckResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/compliance/rules:
+    get:
+      tags:
+        - compliance
+      summary: 获取合规规则列表
+      description: 获取系统支持的财务合规规则列表
+      operationId: getComplianceRules
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: rule_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [accounting, tax, licensing, labor]
+          description: 规则类型
+        - name: industry
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 行业类别
+        - name: region
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 地区
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceRulesResponse'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/data/generate:
+    post:
+      tags:
+        - data
+      summary: 生成模拟数据
+      description: |
+        生成指定类型和规模的商户模拟数据。
+        
+        可生成的数据类型：
+        - 交易数据
+        - 成本数据
+        - 财务报表数据
+      operationId: generateSimulationData
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataGenerationRequest'
+      responses:
+        '200':
+          description: 生成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataGenerationResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/data/import:
+    post:
+      tags:
+        - data
+      summary: 导入数据
+      description: 通过API批量导入商户数据
+      operationId: importData
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataImportRequest'
+      responses:
+        '200':
+          description: 导入成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataImportResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/data/import-file:
+    post:
+      tags:
+        - data
+      summary: 导入文件数据
+      description: 通过上传文件导入商户数据
+      operationId: importFileData
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - merchant_id
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 数据文件(Excel/CSV)
+                merchant_id:
+                  type: string
+                  description: 商户ID
+                data_type:
+                  type: string
+                  enum: [financial, transaction, cost, inventory]
+                  description: 数据类型
+      responses:
+        '200':
+          description: 导入成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataImportResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/merchants:
+    post:
+      tags:
+        - merchant
+      summary: 添加新商户
+      description: 创建新的商户记录
+      operationId: createMerchant
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantCreateRequest'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      tags:
+        - merchant
+      summary: 获取商户列表
+      description: 获取所有商户的列表
+      operationId: listMerchants
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          description: 页码
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: 每页数量
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 商户类型
+        - name: region
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 地区
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantListResponse'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/merchants/{merchant_id}:
+    get:
+      tags:
+        - merchant
+      summary: 获取商户详情
+      description: 获取指定商户的详细信息
+      operationId: getMerchant
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: merchant_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 商户ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantResponse'
+        '404':
+          description: 未找到商户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - merchant
+      summary: 更新商户信息
+      description: 更新指定商户的信息
+      operationId: updateMerchant
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: merchant_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 商户ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantResponse'
+        '404':
+          description: 未找到商户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - merchant
+      summary: 删除商户
+      description: 删除指定的商户记录
+      operationId: deleteMerchant
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: merchant_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 商户ID
+      responses:
+        '204':
+          description: 删除成功
+        '404':
+          description: 未找到商户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/reports/generate:
+    post:
+      tags:
+        - report
+      summary: 生成报表
+      description: 根据指定参数生成商户分析报表
+      operationId: generateReport
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportGenerationRequest'
+      responses:
+        '200':
+          description: 生成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportGenerationResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/reports/list:
+    get:
+      tags:
+        - report
+      summary: 获取报表列表
+      description: 获取生成的报表列表
+      operationId: listReports
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: merchant_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 商户ID
+        - name: report_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [full, cashflow, cost, compliance]
+          description: 报表类型
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: 开始日期
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: 结束日期
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: 页码
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+          description: 每页数量
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportListResponse'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                
+  /api/v1/reports/{report_id}:
+    get:
+      tags:
+        - report
+      summary: 获取报表详情
+      description: 获取指定报表的详细信息
+      operationId: getReport
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 报表ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportDetailResponse'
+        '404':
+          description: 未找到报表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - report
+      summary: 删除报表
+      description: 删除指定的报表
+      operationId: deleteReport
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 报表ID
+      responses:
+        '204':
+          description: 删除成功
+        '404':
+          description: 未找到报表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 使用JWT令牌进行身份验证，通过/api/v1/token接口获取
+
+  schemas:
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT访问令牌
+        token_type:
+          type: string
+          description: 令牌类型，通常为"bearer"
+          example: bearer
+        expires_in:
+          type: integer
+          description: 令牌有效期(秒)
+          example: 86400
+        refresh_token:
+          type: string
+          description: 用于刷新访问令牌的刷新令牌
+          
+    UserInfo:
+      type: object
+      properties:
+        username:
+          type: string
+          description: 用户名
+        email:
+          type: string
+          description: 电子邮箱
+          format: email
+        full_name:
+          type: string
+          description: 用户全名
+        role:
+          type: string
+          description: 用户角色
+          enum: [admin, user, analyst]
+      
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: 错误代码
+        message:
+          type: string
+          description: 错误描述信息
+        service:
+          type: string
+          description: 出错服务名称
+        details:
+          type: object
+          description: 详细错误信息
+          additionalProperties: true
+      
+    IntegratedAnalysisRequest:
+      type: object
+      required:
+        - merchant_id
+        - time_range
+        - analysis_types
+      properties:
+        merchant_id:
+          type: string
+          description: 商户ID
+        time_range:
+          type: object
+          required:
+            - start_date
+            - end_date
+          properties:
+            start_date:
+              type: string
+              format: date
+              description: 开始日期（YYYY-MM-DD）
+            end_date:
+              type: string
+              format: date
+              description: 结束日期（YYYY-MM-DD）
+        analysis_types:
+          type: array
+          description: 分析类型数组
+          items:
+            type: string
+            enum: [cashflow, cost, compliance]
+        parameters:
+          type: object
+          properties:
+            prediction_days:
+              type: integer
+              description: 现金流预测天数
+              default: 30
+            confidence_level:
+              type: number
+              description: 预测置信度，取值0-1
+              default: 0.95
+              minimum: 0
+              maximum: 1
+            analysis_depth:
+              type: string
+              description: 分析深度
+              enum: [simple, normal, detailed]
+              default: normal
+      example:
+        merchant_id: "m123456"
+        time_range:
+          start_date: "2023-01-01"
+          end_date: "2023-03-31"
+        analysis_types: ["cashflow", "cost", "compliance"]
+        parameters:
+          prediction_days: 30
+          confidence_level: 0.95
+          analysis_depth: "detailed"
+          
+    IntegratedAnalysisResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+          description: 请求ID
+        status:
+          type: string
+          description: 请求状态
+          enum: [success, error]
+        data:
+          type: object
+          properties:
+            merchant_id:
+              type: string
+              description: 商户ID
+            report_id:
+              type: string
+              description: 报告ID
+            time_range:
+              type: object
+              properties:
+                start_date:
+                  type: string
+                  format: date
+                end_date:
+                  type: string
+                  format: date
+            summary:
+              type: object
+              properties:
+                health_score:
+                  type: number
+                  description: 商户健康评分(0-100)
+                revenue_trend:
+                  type: string
+                  description: 收入趋势
+                cost_efficiency:
+                  type: string
+                  description: 成本效率
+                compliance_status:
+                  type: string
+                  description: 合规状态
+                cash_position:
+                  type: string
+                  description: 现金状况
+            cashflow_analysis:
+              type: object
+              description: 现金流分析结果
+            cost_analysis:
+              type: object
+              description: 成本分析结果
+            compliance_analysis:
+              type: object
+              description: 合规分析结果
+            integrated_insights:
+              type: array
+              description: 综合分析洞察
+              items:
+                type: object
+                properties:
+                  category:
+                    type: string
+                  trend:
+                    type: string
+                  insight:
+                    type: string
+                  recommendation:
+                    type: string
+
+    CashflowPredictionRequest:
+      type: object
+      required:
+        - merchant_id
+        - start_date
+        - end_date
+      properties:
+        merchant_id:
+          type: string
+          description: 商户ID
+        start_date:
+          type: string
+          format: date-time
+          description: 预测开始日期
+        end_date:
+          type: string
+          format: date-time
+          description: 预测结束日期
+        granularity:
+          type: string
+          enum: [daily, weekly, monthly]
+          default: daily
+          description: 预测粒度
+        prediction_days:
+          type: integer
+          description: 预测天数
+          default: 30
+          minimum: 1
+          maximum: 365
+        confidence_level:
+          type: number
+          description: 预测置信度
+          default: 0.95
+          minimum: 0.5
+          maximum: 0.99
+        model_type:
+          type: string
+          description: 预测模型类型
+          enum: [arima, prophet, lstm, auto]
+          default: auto
+      example:
+        merchant_id: "M001"
+        start_date: "2024-01-01T00:00:00Z"
+        end_date: "2024-12-31T23:59:59Z"
+        granularity: "daily"
+        prediction_days: 30
+        confidence_level: 0.95
+        model_type: "auto"
+
+    CashflowPredictionResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+          description: 请求ID
+        status:
+          type: string
+          description: 请求状态
+          enum: [success, error]
+        data:
+          type: object
+          properties:
+            merchant_id:
+              type: string
+              description: 商户ID
+            prediction:
+              type: array
+              description: 预测数据点数组
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  value:
+                    type: number
+                  lower_bound:
+                    type: number
+                  upper_bound:
+                    type: number
+            metrics:
+              type: object
+              properties:
+                mape:
+                  type: number
+                  description: 平均绝对百分比误差
+                rmse:
+                  type: number
+                  description: 均方根误差
+                model_type:
+                  type: string
+                  description: 使用的模型类型
+                parameters:
+                  type: object
+                  description: 模型参数
+
+    PatternAnalysisResponse:
+      type: object
+      properties:
+        merchant_id:
+          type: string
+          description: 商户ID
+        patterns:
+          type: object
+          properties:
+            periodicity:
+              type: array
+              description: 周期性模式
+              items:
+                type: object
+                properties:
+                  period_days:
+                    type: integer
+                  strength:
+                    type: number
+                  significance:
+                    type: number
+            seasonality:
+              type: object
+              description: 季节性特征
+              properties:
+                yearly:
+                  type: number
+                quarterly:
+                  type: number
+                monthly:
+                  type: number
+                weekly:
+                  type: number
+            trend:
+              type: object
+              description: 趋势特征
+              properties:
+                direction:
+                  type: string
+                  enum: [increasing, decreasing, stable]
+                magnitude:
+                  type: number
+            anomalies:
+              type: array
+              description: 异常模式
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  expected_value:
+                    type: number
+                  actual_value:
+                    type: number
+                  deviation:
+                    type: number
+                  significance:
+                    type: number
+
+    SimulationRequest:
+      type: object
+      required:
+        - scenario_type
+        - parameters
+      properties:
+        scenario_type:
+          type: string
+          enum: [revenue_change, expense_change, timing_change, probability_change]
+          description: 场景类型
+        parameters:
+          type: object
+          description: 场景参数
+          additionalProperties: true
+        start_date:
+          type: string
+          format: date
+          description: 模拟开始日期
+        end_date:
+          type: string
+          format: date
+          description: 模拟结束日期
+      example:
+        scenario_type: "revenue_change"
+        parameters:
+          change_percent: 10
+          categories: ["sales", "service_fees"]
+        start_date: "2024-04-01"
+        end_date: "2024-06-30"
+
+    SimulationResponse:
+      type: object
+      properties:
+        merchant_id:
+          type: string
+          description: 商户ID
+        scenario_type:
+          type: string
+          description: 场景类型
+        baseline:
+          type: array
+          description: 基准现金流预测
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              value:
+                type: number
+        simulation:
+          type: array
+          description: 模拟场景下的现金流预测
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              value:
+                type: number
+        impact_analysis:
+          type: object
+          description: 影响分析
+          properties:
+            total_change:
+              type: number
+            percent_change:
+              type: number
+            risk_assessment:
+              type: string
+              enum: [LOW, MEDIUM, HIGH]
+
+    CostAnalysisRequest:
+      type: object
+      required:
+        - merchant_id
+        - time_range
+      properties:
+        merchant_id:
+          type: string
+          description: 商户ID
+        time_range:
+          type: object
+          required:
+            - start_date
+            - end_date
+          properties:
+            start_date:
+              type: string
+              format: date
+              description: 开始日期
+            end_date:
+              type: string
+              format: date
+              description: 结束日期
+        granularity:
+          type: string
+          enum: [daily, weekly, monthly]
+          default: monthly
+          description: 分析粒度
+        include_benchmarks:
+          type: boolean
+          default: false
+          description: 是否包含行业基准比较
+        categories:
+          type: array
+          description: 需分析的成本类别数组，默认分析所有类别
+          items:
+            type: string
+      example:
+        merchant_id: "M001"
+        time_range:
+          start_date: "2023-01-01"
+          end_date: "2023-12-31"
+        granularity: "monthly"
+        include_benchmarks: true
+        categories: ["labor", "raw_material", "utilities"]
+
+    CostAnalysisResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+          description: 请求ID
+        status:
+          type: string
+          description: 请求状态
+          enum: [success, error]
+        data:
+          type: object
+          properties:
+            merchant_id:
+              type: string
+              description: 商户ID
+            total_cost:
+              type: number
+              description: 总成本金额
+            cost_breakdown:
+              type: array
+              description: 成本明细数组
+              items:
+                type: object
+                properties:
+                  category:
+                    type: string
+                    description: 成本类别
+                  amount:
+                    type: number
+                    description: 金额
+                  percentage:
+                    type: number
+                    description: 占比(%)
+            trends:
+              type: object
+              description: 成本变化趋势
+              additionalProperties:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    date:
+                      type: string
+                      format: date
+                    value:
+                      type: number
+            benchmarks:
+              type: object
+              description: 行业基准比较
+              properties:
+                industry:
+                  type: string
+                  description: 行业类别
+                business_size:
+                  type: string
+                  description: 企业规模
+                categories:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      category:
+                        type: string
+                      merchant_percentage:
+                        type: number
+                      industry_average:
+                        type: number
+                      difference:
+                        type: number
+
+    CostBenchmarkResponse:
+      type: object
+      properties:
+        industry:
+          type: string
+          description: 行业类别
+        business_size:
+          type: string
+          description: 企业规模
+        region:
+          type: string
+          description: 地区
+        sample_size:
+          type: integer
+          description: 样本量
+        update_date:
+          type: string
+          format: date
+          description: 数据更新日期
+        categories:
+          type: array
+          description: 成本类别数组
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+                description: 成本类别
+              average_percentage:
+                type: number
+                description: 行业平均占比(%)
+              median_percentage:
+                type: number
+                description: 行业中位数占比(%)
+              percentile_10:
+                type: number
+                description: 10%分位数
+              percentile_90:
+                type: number
+                description: 90%分位数
+
+    CostOptimizationResponse:
+      type: object
+      properties:
+        merchant_id:
+          type: string
+          description: 商户ID
+        optimization_target:
+          type: string
+          description: 优化目标类别
+        current_costs:
+          type: object
+          description: 当前成本
+          additionalProperties:
+            type: number
+        potential_savings:
+          type: object
+          description: 潜在节省
+          properties:
+            amount:
+              type: number
+              description: 节省金额
+            percentage:
+              type: number
+              description: 节省百分比
+        suggestions:
+          type: array
+          description: 优化建议
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+                description: 成本类别
+              description:
+                type: string
+                description: 建议描述
+              impact:
+                type: string
+                enum: [high, medium, low]
+                description: 影响程度
+              estimated_savings:
+                type: number
+                description: 预计节省金额
+              implementation_difficulty:
+                type: string
+                enum: [easy, moderate, difficult]
+                description: 实施难度
+
+    ComplianceCheckRequest:
+      type: object
+      required:
+        - merchant_id
+        - time_range
+      properties:
+        merchant_id:
+          type: string
+          description: 商户ID
+        time_range:
+          type: object
+          required:
+            - start_date
+            - end_date
+          properties:
+            start_date:
+              type: string
+              format: date
+              description: 开始日期
+            end_date:
+              type: string
+              format: date
+              description: 结束日期
+        check_types:
+          type: array
+          description: 检查类型数组
+          items:
+            type: string
+            enum: [accounting, tax, licensing, labor]
+          default: ["accounting", "tax", "licensing", "labor"]
+        region:
+          type: string
+          description: 地区，用于应用相应的法规
+        detail_level:
+          type: string
+          enum: [basic, detailed, comprehensive]
+          default: detailed
+          description: 检查详细程度
+      example:
+        merchant_id: "M001"
+        time_range:
+          start_date: "2023-01-01"
+          end_date: "2023-12-31"
+        check_types: ["accounting", "tax", "licensing"]
+        region: "shanghai"
+        detail_level: "detailed"
+
+    ComplianceCheckResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+          description: 请求ID
+        status:
+          type: string
+          description: 请求状态
+          enum: [success, error]
+        data:
+          type: object
+          properties:
+            merchant_id:
+              type: string
+              description: 商户ID
+            overall_status:
+              type: string
+              enum: [compliant, needs_review, non_compliant]
+              description: 总体合规状态
+            type_status:
+              type: object
+              description: 各类型合规状态
+              properties:
+                accounting:
+                  type: string
+                  enum: [compliant, needs_review, non_compliant]
+                tax:
+                  type: string
+                  enum: [compliant, needs_review, non_compliant]
+                licensing:
+                  type: string
+                  enum: [compliant, needs_review, non_compliant]
+                labor:
+                  type: string
+                  enum: [compliant, needs_review, non_compliant]
+            risk_score:
+              type: number
+              description: 风险评分(0-100)
+            issues:
+              type: array
+              description: 发现的问题
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    description: 问题类型
+                  severity:
+                    type: string
+                    enum: [critical, high, medium, low]
+                    description: 严重程度
+                  description:
+                    type: string
+                    description: 问题描述
+                  recommendation:
+                    type: string
+                    description: 解决建议
+                  reference:
+                    type: string
+                    description: 法规参考
+
+    ComplianceRulesResponse:
+      type: object
+      properties:
+        rule_count:
+          type: integer
+          description: 规则总数
+        rules:
+          type: array
+          description: 规则列表
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: 规则ID
+              type:
+                type: string
+                enum: [accounting, tax, licensing, labor]
+                description: 规则类型
+              name:
+                type: string
+                description: 规则名称
+              description:
+                type: string
+                description: 规则描述
+              applicable_industries:
+                type: array
+                items:
+                  type: string
+                description: 适用行业
+              applicable_regions:
+                type: array
+                items:
+                  type: string
+                description: 适用地区
+              severity:
+                type: string
+                enum: [critical, high, medium, low]
+                description: 违规严重程度
+
+    DataGenerationRequest:
+      type: object
+      required:
+        - merchant_type
+        - time_range
+        - data_types
+      properties:
+        merchant_type:
+          type: string
+          description: 商户类型
+          enum: [restaurant, retail, service, manufacturing, ecommerce]
+        time_range:
+          type: object
+          required:
+            - start_date
+            - end_date
+          properties:
+            start_date:
+              type: string
+              format: date
+              description: 开始日期
+            end_date:
+              type: string
+              format: date
+              description: 结束日期
+        data_types:
+          type: array
+          description: 数据类型数组
+          items:
+            type: string
+            enum: [transaction, cost, financial, inventory]
+        business_scale:
+          type: string
+          enum: [small, medium, large]
+          default: medium
+          description: 业务规模
+        region:
+          type: string
+          description: 地区
+        scenarios:
+          type: array
+          description: 模拟场景数组
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [seasonal, growth, decline, stable, volatile]
+              parameters:
+                type: object
+                additionalProperties: true
+      example:
+        merchant_type: "restaurant"
+        time_range:
+          start_date: "2023-01-01"
+          end_date: "2023-12-31"
+        data_types: ["transaction", "cost"]
+        business_scale: "medium"
+        region: "shanghai"
+        scenarios: [
+          {"type": "seasonal", "parameters": {"peak_months": [5, 6, 7, 12]}},
+          {"type": "growth", "parameters": {"annual_rate": 0.15}}
+        ]
+
+    DataGenerationResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+          description: 请求ID
+        status:
+          type: string
+          description: 请求状态
+          enum: [success, error]
+        data:
+          type: object
+          properties:
+            merchant_id:
+              type: string
+              description: 生成的商户ID
+            data_summary:
+              type: object
+              description: 数据摘要
+              properties:
+                transaction_count:
+                  type: integer
+                  description: 交易数量
+                cost_records:
+                  type: integer
+                  description: 成本记录数
+                financial_records:
+                  type: integer
+                  description: 财务记录数
+                inventory_records:
+                  type: integer
+                  description: 库存记录数
+            example_data:
+              type: object
+              description: 示例数据片段
+              additionalProperties: true
+
+    DataImportRequest:
+      type: object
+      required:
+        - merchant_id
+        - data_type
+        - data
+      properties:
+        merchant_id:
+          type: string
+          description: 商户ID
+        data_type:
+          type: string
+          description: 数据类型
+          enum: [financial, transaction, cost, inventory]
+        data:
+          type: array
+          description: 导入的数据
+          items:
+            type: object
+            additionalProperties: true
+        options:
+          type: object
+          description: 导入选项
+          properties:
+            overwrite:
+              type: boolean
+              default: false
+              description: 是否覆盖现有数据
+            validate:
+              type: boolean
+              default: true
+              description: 是否验证数据
+
+    DataImportResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+          description: 请求ID
+        status:
+          type: string
+          description: 请求状态
+          enum: [success, error, partial]
+        data:
+          type: object
+          properties:
+            merchant_id:
+              type: string
+              description: 商户ID
+            records_processed:
+              type: integer
+              description: 处理的记录数
+            records_success:
+              type: integer
+              description: 成功导入的记录数
+            records_failed:
+              type: integer
+              description: 导入失败的记录数
+            errors:
+              type: array
+              description: 错误记录
+              items:
+                type: object
+                properties:
+                  index:
+                    type: integer
+                    description: 数据索引
+                  reason:
+                    type: string
+                    description: 失败原因
+
+    MerchantCreateRequest:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          description: 商户名称
+        type:
+          type: string
+          description: 商户类型
+          enum: [restaurant, retail, service, manufacturing, ecommerce]
+        address:
+          type: string
+          description: 地址
+        region:
+          type: string
+          description: 地区
+        contact:
+          type: string
+          description: 联系方式
+        establishment_date:
+          type: string
+          format: date
+          description: 成立日期
+        business_hours:
+          type: object
+          description: 营业时间
+          properties:
+            weekday:
+              type: string
+              description: 工作日营业时间
+            weekend:
+              type: string
+              description: 周末营业时间
+        size:
+          type: string
+          enum: [small, medium, large]
+          description: 规模
+      example:
+        name: "示例餐厅"
+        type: "restaurant"
+        address: "北京市朝阳区xxx街道"
+        region: "beijing"
+        contact: "13800138000"
+        establishment_date: "2020-01-01"
+        business_hours: {
+          "weekday": "09:00-22:00",
+          "weekend": "10:00-23:00"
+        }
+        size: "medium"
+
+    MerchantUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 商户名称
+        address:
+          type: string
+          description: 地址
+        contact:
+          type: string
+          description: 联系方式
+        business_hours:
+          type: object
+          description: 营业时间
+          properties:
+            weekday:
+              type: string
+              description: 工作日营业时间
+            weekend:
+              type: string
+              description: 周末营业时间
+        size:
+          type: string
+          enum: [small, medium, large]
+          description: 规模
+
+    MerchantResponse:
+      type: object
+      properties:
+        merchant_id:
+          type: string
+          description: 商户ID
+        name:
+          type: string
+          description: 商户名称
+        type:
+          type: string
+          description: 商户类型
+        address:
+          type: string
+          description: 地址
+        region:
+          type: string
+          description: 地区
+        contact:
+          type: string
+          description: 联系方式
+        establishment_date:
+          type: string
+          format: date
+          description: 成立日期
+        business_hours:
+          type: object
+          description: 营业时间
+        size:
+          type: string
+          description: 规模
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+
+    MerchantListResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: 商户总数
+        page:
+          type: integer
+          description: 当前页码
+        page_size:
+          type: integer
+          description: 每页数量
+        merchants:
+          type: array
+          description: 商户列表
+          items:
+            $ref: '#/components/schemas/MerchantResponse'
+
+    ReportGenerationRequest:
+      type: object
+      required:
+        - merchant_id
+        - report_type
+        - time_range
+      properties:
+        merchant_id:
+          type: string
+          description: 商户ID
+        report_type:
+          type: string
+          enum: [full, cashflow, cost, compliance]
+          description: 报表类型
+        time_range:
+          type: object
+          required:
+            - start_date
+            - end_date
+          properties:
+            start_date:
+              type: string
+              format: date
+              description: 开始日期
+            end_date:
+              type: string
+              format: date
+              description: 结束日期
+        format:
+          type: string
+          enum: [pdf, excel, csv, html]
+          default: pdf
+          description: 报表格式
+        options:
+          type: object
+          description: 报表选项
+          properties:
+            include_charts:
+              type: boolean
+              default: true
+              description: 是否包含图表
+            include_recommendations:
+              type: boolean
+              default: true
+              description: 是否包含建议
+            language:
+              type: string
+              default: zh-CN
+              description: 报表语言
+      example:
+        merchant_id: "M001"
+        report_type: "full"
+        time_range: {
+          "start_date": "2023-01-01",
+          "end_date": "2023-12-31"
+        }
+        format: "pdf"
+        options: {
+          "include_charts": true,
+          "include_recommendations": true,
+          "language": "zh-CN"
+        }
+
+    ReportGenerationResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+          description: 请求ID
+        status:
+          type: string
+          description: 请求状态
+          enum: [success, error]
+        data:
+          type: object
+          properties:
+            report_id:
+              type: string
+              description: 报表ID
+            merchant_id:
+              type: string
+              description: 商户ID
+            report_type:
+              type: string
+              description: 报表类型
+            format:
+              type: string
+              description: 报表格式
+            url:
+              type: string
+              description: 报表下载链接
+            created_at:
+              type: string
+              format: date-time
+              description: 创建时间
+            expires_at:
+              type: string
+              format: date-time
+              description: 链接过期时间
+
+    ReportListResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: 报表总数
+        page:
+          type: integer
+          description: 当前页码
+        page_size:
+          type: integer
+          description: 每页数量
+        reports:
+          type: array
+          description: 报表列表
+          items:
+            type: object
+            properties:
+              report_id:
+                type: string
+                description: 报表ID
+              merchant_id:
+                type: string
+                description: 商户ID
+              report_type:
+                type: string
+                description: 报表类型
+              format:
+                type: string
+                description: 报表格式
+              created_at:
+                type: string
+                format: date-time
+                description: 创建时间
+              time_range:
+                type: object
+                properties:
+                  start_date:
+                    type: string
+                    format: date
+                  end_date:
+                    type: string
+                    format: date
+
+    ReportDetailResponse:
+      type: object
+      properties:
+        report_id:
+          type: string
+          description: 报表ID
+        merchant_id:
+          type: string
+          description: 商户ID
+        merchant_name:
+          type: string
+          description: 商户名称
+        report_type:
+          type: string
+          description: 报表类型
+        time_range:
+          type: object
+          properties:
+            start_date:
+              type: string
+              format: date
+            end_date:
+              type: string
+              format: date
+        format:
+          type: string
+          description: 报表格式
+        url:
+          type: string
+          description: 报表下载链接
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        expires_at:
+          type: string
+          format: date-time
+          description: 链接过期时间
+        summary:
+          type: object
+          description: 报表摘要
+          additionalProperties: true
+
+security:
+  - bearerAuth: [] 

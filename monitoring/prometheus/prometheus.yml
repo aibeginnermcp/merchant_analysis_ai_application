@@ -2,47 +2,28 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
-alerting:
-  alertmanagers:
-    - static_configs:
-        - targets: ['alertmanager:9093']
-
-rule_files:
-  - "rules/*.yml"
-
 scrape_configs:
-  - job_name: 'merchant-gateway'
-    metrics_path: '/metrics'
+  - job_name: 'api_gateway'
     static_configs:
-      - targets: ['gateway:8000']
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-        replacement: 'merchant-gateway'
+      - targets: ['api_gateway:8080']
+    metrics_path: /metrics
 
-  - job_name: 'merchant-cashflow'
-    metrics_path: '/metrics'
+  - job_name: 'data_simulator'
     static_configs:
-      - targets: ['cashflow:8001']
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-        replacement: 'merchant-cashflow'
+      - targets: ['data_simulator:8000']
+    metrics_path: /metrics
 
-  - job_name: 'merchant-cost'
-    metrics_path: '/metrics'
+  - job_name: 'cashflow_predictor'
     static_configs:
-      - targets: ['cost:8002']
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-        replacement: 'merchant-cost'
+      - targets: ['cashflow_predictor:8002']
+    metrics_path: /metrics
 
-  - job_name: 'merchant-compliance'
-    metrics_path: '/metrics'
+  - job_name: 'cost_analyzer'
     static_configs:
-      - targets: ['compliance:8003']
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-        replacement: 'merchant-compliance' 
+      - targets: ['cost_analyzer:8001']
+    metrics_path: /metrics
+
+  - job_name: 'compliance_checker'
+    static_configs:
+      - targets: ['compliance_checker:8003']
+    metrics_path: /metrics
