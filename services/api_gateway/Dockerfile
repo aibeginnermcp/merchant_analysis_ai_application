@@ -1,61 +1,34 @@
-# 基础阶段：安装系统依赖
-FROM python:3.9-slim as base
+# 简化的Dockerfile
+FROM python:3.9-slim
 
 WORKDIR /app
 
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    POETRY_VERSION=1.4.2
-
+# 安装系统依赖
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         curl \
-        build-essential \
-    && rm -rf /var/lib/apt/lists/* \
-    && curl -sSL https://install.python-poetry.org | python -
+    && rm -rf /var/lib/apt/lists/*
 
-# 开发阶段：安装所有依赖
-FROM base as development
+# 复制依赖文件
+COPY requirements.txt .
 
-COPY pyproject.toml poetry.lock ./
+# 安装依赖
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi
-
+# 复制应用代码
 COPY . .
 
-CMD ["poetry", "run", "uvicorn", "src.gateway.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# 设置环境变量
+ENV PYTHONPATH=/app
+ENV MODULE_NAME=app
+ENV PORT=8000
 
-# 构建阶段：安装生产依赖
-FROM base as builder
-
-COPY pyproject.toml poetry.lock ./
-
-RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi --no-dev
-
-COPY . .
-
-RUN poetry build
-
-# 生产阶段：最小化镜像
-FROM python:3.9-slim as production
-
-WORKDIR /app
-
-COPY --from=builder /app/dist/*.whl /app/
-COPY docker/gateway/entrypoint.sh /app/
-
-RUN pip install --no-cache-dir /app/*.whl \
-    && rm /app/*.whl \
-    && useradd -r -u 1000 appuser \
-    && chown -R appuser:appuser /app
-
-USER appuser
-
+# 暴露端口
 EXPOSE 8000
 
-ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["uvicorn", "src.gateway.main:app", "--host", "0.0.0.0", "--port", "8000"] 
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# 启动指令
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"] 

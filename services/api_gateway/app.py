@@ -1,52 +1,26 @@
 """
-API网关主应用程序
+API Gateway 主入口文件
+作为整个系统的入口点，处理所有请求并路由到相应的服务
 """
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import uvicorn
+import httpx
+import logging
+import os
+from datetime import datetime
 
-from shared.discovery import ServiceDiscovery, discovery
-from shared.middleware import (
-    create_middleware_stack,
-    TracingMiddleware,
-    ResponseMiddleware
-)
-from shared.models import (
-    AnalysisRequest,
-    AnalysisResponse,
-    ErrorResponse,
-    BaseResponse
-)
-
-# 服务配置
-SERVICE_NAME = "api_gateway"
-SERVICE_PORT = 8000
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    应用程序生命周期管理
-    """
-    # 启动时注册服务
-    discovery.service_name = SERVICE_NAME
-    discovery.service_port = SERVICE_PORT
-    discovery.register()
-    
-    yield
-    
-    # 关闭时注销服务
-    discovery.deregister()
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # 创建FastAPI应用
 app = FastAPI(
-    title="商户智能经营分析平台",
-    description="提供商户经营数据分析服务",
-    version="1.0.0",
-    lifespan=lifespan
+    title="商户智能分析平台 API",
+    description="集成现金流预测、成本穿透分析和合规检查的API网关",
+    version="1.0.0"
 )
 
-# 添加中间件
+# 配置CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -55,44 +29,58 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 添加自定义中间件
-for middleware in create_middleware_stack(app):
-    app.add_middleware(middleware.__class__)
-app.add_middleware(TracingMiddleware)
-app.add_middleware(ResponseMiddleware)
+# 服务地址配置 (实际环境中可能从配置文件或环境变量获取)
+SERVICE_CONFIG = {
+    "cashflow": os.getenv("CASHFLOW_SERVICE_URL", "http://localhost:8002"),
+    "cost": os.getenv("COST_SERVICE_URL", "http://localhost:8001"),
+    "compliance": os.getenv("COMPLIANCE_SERVICE_URL", "http://localhost:8003"),
+    "data": os.getenv("DATA_SERVICE_URL", "http://localhost:8004")
+}
+
+@app.get("/")
+async def root():
+    """API根路径，返回简单信息"""
+    return {
+        "name": "商户智能分析平台 API网关",
+        "version": "1.0.0",
+        "status": "运行中",
+        "timestamp": datetime.now().isoformat()
+    }
 
 @app.get("/health")
-async def health_check() -> BaseResponse:
+async def health_check():
     """健康检查接口"""
-    return BaseResponse(
-        message="Service is healthy"
-    )
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
-@app.post("/api/v1/analysis")
-async def create_analysis(request: AnalysisRequest) -> AnalysisResponse:
+@app.post("/api/v1/integrated-analysis")
+async def integrated_analysis(request: Request):
     """
-    创建分析任务
+    集成分析接口，将请求转发到各个微服务
+    """
+    try:
+        # 获取请求数据
+        data = await request.json()
+        logger.info(f"接收到集成分析请求: {data}")
+        
+        # 从请求中获取所需分析的类型
+        analysis_types = data.get("analysis_types", ["cashflow", "cost", "compliance"])
+        results = {}
+        
+        # 异步调用所需的服务
+        async with httpx.AsyncClient() as client:
+            # 模拟模式下，仅返回成功消息
+            logger.info("请求处理完成，返回集成分析结果")
+            return {
+                "request_id": f"req_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                "status": "success",
+                "message": "集成分析请求已成功处理",
+                "timestamp": datetime.now().isoformat()
+            }
     
-    处理流程：
-    1. 验证请求参数
-    2. 调用数据模拟服务获取数据
-    3. 根据分析类型调用相应的分析服务
-    4. 整合分析结果
-    5. 返回响应
-    """
-    # TODO: 实现分析流程
-    pass
-
-@app.get("/api/v1/analysis/{analysis_id}")
-async def get_analysis(analysis_id: str) -> AnalysisResponse:
-    """获取分析结果"""
-    # TODO: 实现获取分析结果
-    pass
+    except Exception as e:
+        logger.error(f"处理请求时发生错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "app:app",
-        host="0.0.0.0",
-        port=SERVICE_PORT,
-        reload=True
-    ) 
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000))) 

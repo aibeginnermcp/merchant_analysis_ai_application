@@ -28,17 +28,10 @@ COPY --from=builder /root/.local /root/.local
 # 设置环境变量
 ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONPATH=/app
-ENV COST_ANALYZER_PORT=8001
-ENV COST_ANALYZER_HOST=0.0.0.0
+ENV PORT=8001
 
 # 复制应用代码
-COPY src/ ./src/
-COPY config/ ./config/
-
-# 创建非root用户并切换
-RUN useradd -m costanalyzer && \
-    chown -R costanalyzer:costanalyzer /app
-USER costanalyzer
+COPY . .
 
 # 暴露端口
 EXPOSE 8001
@@ -48,4 +41,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8001/health || exit 1
 
 # 启动命令
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
