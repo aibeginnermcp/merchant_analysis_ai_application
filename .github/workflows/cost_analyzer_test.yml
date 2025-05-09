@@ -21,80 +21,99 @@ jobs:
         image: mongo:4.4
         ports:
           - 27017:27017
+        options: >-
+          --health-cmd "echo 'db.runCommand({ping:1}).ok' | mongosh localhost:27017/test --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     
     steps:
-    - name: 检出代码
-      uses: actions/checkout@v2
-    
-    - name: 设置Python环境
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.9'
-    
-    - name: 验证requirements.txt格式
-      run: |
-        echo "检查requirements.txt格式..."
-        cd services/cost_analyzer
-        cat requirements.txt
-        echo "检查requirements.txt中的包数量..."
-        COUNT=$(grep -c "^[a-zA-Z]" requirements.txt)
-        echo "包数量: $COUNT"
-        if [ "$COUNT" -lt 10 ]; then
-          echo "⚠️ 警告: requirements.txt包数量不足，可能格式有问题"
-          exit 1
-        fi
-    
-    - name: 安装依赖
-      run: |
-        cd services/cost_analyzer
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-asyncio httpx
-    
-    - name: 运行单元测试
-      run: |
-        cd services/cost_analyzer
-        python -m pytest tests/ -v || echo "单元测试失败，但将继续后续步骤"
-    
-    - name: 构建Docker镜像
-      run: |
-        echo "正在构建成本分析服务Docker镜像..."
-        docker build -t merchant-cost_analyzer:test -f ./services/cost_analyzer/Dockerfile .
-    
-    - name: 运行容器测试
-      run: |
-        echo "启动成本分析服务容器..."
-        docker run -d --name cost_analyzer \
-          -p 8001:8001 \
-          -e MONGODB_URI="mongodb://host.docker.internal:27017/merchant_analytics" \
-          -e DEBUG=true \
-          merchant-cost_analyzer:test
-        
-        echo "等待服务启动..."
-        sleep 10
-        
-        echo "测试健康检查接口..."
-        curl -v http://localhost:8001/health
-        
-        echo "测试API接口..."
-        curl -v -X POST http://localhost:8001/api/v1/analyze \
-          -H "Content-Type: application/json" \
-          -d '{
-              "merchant_id": "test123",
-              "start_date": "2023-01-01",
-              "end_date": "2023-03-31",
-              "analysis_depth": "detailed"
-          }'
-    
-    - name: 导出容器日志
-      if: always()
-      run: |
-        echo "导出容器日志..."
-        docker logs cost_analyzer > cost_analyzer_logs.txt
-    
-    - name: 上传日志文件
-      if: always()
-      uses: actions/upload-artifact@v2
-      with:
-        name: cost-analyzer-logs
-        path: cost_analyzer_logs.txt 
+      - name: 检出代码
+        uses: actions/checkout@v2
+      
+      - name: 设置Python环境
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+      
+      - name: 验证requirements.txt格式
+        run: |
+          echo "检查requirements.txt格式..."
+          cd services/cost_analyzer
+          cat requirements.txt
+          echo "检查requirements.txt中的包数量..."
+          COUNT=$(grep -c "^[a-zA-Z]" requirements.txt)
+          echo "包数量: $COUNT"
+          if [ "$COUNT" -lt 10 ]; then
+            echo "⚠️ 警告: requirements.txt包数量不足，可能格式有问题"
+            exit 1
+          fi
+      
+      - name: 安装依赖
+        run: |
+          cd services/cost_analyzer
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+      
+      - name: 运行测试
+        run: |
+          cd services/cost_analyzer
+          if [ -d "tests" ]; then
+            echo "✅ tests目录存在，将运行测试"
+            python -m pytest tests/ -v || echo "单元测试失败，但将继续后续步骤"
+          else
+            echo "⚠️ tests目录不存在，跳过测试"
+          fi
+      
+      - name: 构建Docker镜像
+        run: |
+          echo "正在构建成本分析服务Docker镜像..."
+          docker build -t merchant-cost_analyzer:test -f ./services/cost_analyzer/Dockerfile .
+      
+      - name: 运行容器测试
+        run: |
+          echo "启动成本分析服务容器..."
+          docker run -d --name cost_analyzer \
+            --network host \
+            -e MONGODB_URI="mongodb://localhost:27017/merchant_analytics" \
+            -e DEBUG=true \
+            merchant-cost_analyzer:test || { echo "容器启动失败"; exit 1; }
+          
+          echo "等待服务启动..."
+          for i in $(seq 1 15); do
+            echo "等待服务启动,尝试 $i/15..."
+            if curl -s http://localhost:8001/health > /dev/null; then
+              echo "✅ 服务已启动"
+              break
+            fi
+            
+            if [ $i -eq 15 ]; then
+              echo "❌ 服务启动超时"
+              docker logs cost_analyzer
+              exit 1
+            fi
+            
+            sleep 2
+          done
+          
+          echo "测试健康检查接口..."
+          curl -v http://localhost:8001/health || { echo "健康检查失败"; exit 1; }
+          
+          echo "测试API接口..."
+          curl -v -X POST http://localhost:8001/api/v1/analyze \
+            -H "Content-Type: application/json" \
+            -d '{"merchant_id":"test123","start_date":"2023-01-01","end_date":"2023-03-31","analysis_depth":"detailed"}' || { echo "API接口测试失败"; exit 1; }
+      
+      - name: 导出容器日志
+        if: always()
+        run: |
+          echo "导出容器日志..."
+          docker logs cost_analyzer > cost_analyzer_logs.txt || echo "无法获取容器日志"
+      
+      - name: 上传日志文件
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: cost-analyzer-logs
+          path: cost_analyzer_logs.txt
