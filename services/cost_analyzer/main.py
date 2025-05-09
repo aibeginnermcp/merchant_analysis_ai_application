@@ -12,6 +12,7 @@ import os
 import json
 import time
 import uuid
+import socket
 
 # 配置日志
 logging.basicConfig(
@@ -40,11 +41,65 @@ app.add_middleware(
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
     start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    response.headers["X-Process-Time"] = str(process_time)
-    logger.info(f"请求处理时间: {process_time:.4f}秒 - 路径: {request.url.path}")
-    return response
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        response.headers["X-Process-Time"] = str(process_time)
+        logger.info(f"请求处理时间: {process_time:.4f}秒 - 路径: {request.url.path}")
+        return response
+    except Exception as e:
+        logger.error(f"请求处理异常: {str(e)}")
+        process_time = time.time() - start_time
+        # 返回一个错误响应
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "服务器内部错误，请稍后再试"},
+            headers={"X-Process-Time": str(process_time)}
+        )
+
+# 初始化MongoDB连接参数
+def init_mongodb_connection():
+    # 从环境变量获取MongoDB可用性状态
+    mongodb_available = os.getenv("MONGODB_AVAILABLE", "true").lower() == "true"
+    mongodb_uri = os.getenv("MONGODB_URI", "mongodb://mongodb:27017/merchant_analytics")
+    
+    # 尝试解析数据库主机
+    try:
+        if mongodb_uri and "://" in mongodb_uri:
+            host = mongodb_uri.split("://")[1].split(":")[0].split("/")[0]
+            logger.info(f"MongoDB主机: {host}")
+            try:
+                host_ip = socket.gethostbyname(host)
+                logger.info(f"MongoDB主机IP: {host_ip}")
+                
+                # 尝试连接测试
+                try:
+                    import pymongo
+                    from pymongo.errors import ConnectionFailure
+                    client = pymongo.MongoClient(mongodb_uri, serverSelectionTimeoutMS=5000)
+                    client.admin.command('ping')
+                    logger.info("✅ MongoDB连接成功")
+                    mongodb_available = True
+                except (ConnectionFailure, Exception) as e:
+                    logger.warning(f"MongoDB连接失败: {str(e)}")
+                    mongodb_available = False
+            except socket.gaierror:
+                logger.warning(f"无法解析MongoDB主机名: {host}")
+                mongodb_available = False
+    except Exception as e:
+        logger.error(f"解析MongoDB URI时出错: {str(e)}")
+        mongodb_available = False
+    
+    return {
+        "available": mongodb_available,
+        "uri": mongodb_uri
+    }
+
+# 初始化MongoDB连接
+mongodb_info = init_mongodb_connection()
+MONGODB_AVAILABLE = mongodb_info["available"]
+MONGODB_URI = mongodb_info["uri"]
 
 # 数据模型
 class CostAnalysisRequest(BaseModel):
@@ -78,13 +133,71 @@ async def root():
         "name": "成本穿透分析服务",
         "version": "1.0.0",
         "status": "运行中",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "mongodb_available": MONGODB_AVAILABLE
     }
 
 @app.get("/health")
 async def health_check():
     """健康检查接口"""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+    # 即使MongoDB不可用，服务也被视为健康（有降级功能）
+    status = "healthy"
+    
+    # 检查MongoDB连接
+    db_status = "connected" if MONGODB_AVAILABLE else "unavailable"
+    
+    return {
+        "status": status, 
+        "timestamp": datetime.now().isoformat(),
+        "database": db_status,
+        "hostname": socket.gethostname(),
+        "environment": os.getenv("ENVIRONMENT", "production")
+    }
+
+@app.get("/debug")
+async def debug_info():
+    """调试信息接口"""
+    from platform import python_version
+    import sys
+    
+    try:
+        # 尝试获取MongoDB信息
+        mongodb_info = {"uri": MONGODB_URI.replace(MONGODB_URI.split("@")[-1], "***") if "@" in MONGODB_URI else MONGODB_URI}
+    except Exception as e:
+        mongodb_info = {"error": str(e)}
+    
+    return {
+        "timestamp": datetime.now().isoformat(),
+        "hostname": socket.gethostname(),
+        "python_version": python_version(),
+        "system": sys.platform,
+        "environment_variables": {k: v for k, v in os.environ.items() if k in ["ENVIRONMENT", "PORT", "DEBUG", "MONGODB_AVAILABLE"]},
+        "mongodb": {
+            **mongodb_info,
+            "available": MONGODB_AVAILABLE
+        },
+        "network": {
+            "hostname": socket.gethostname(),
+            "fqdn": socket.getfqdn(),
+            "ip": socket.gethostbyname(socket.gethostname())
+        }
+    }
+
+@app.get("/reconnect-mongodb")
+async def reconnect_mongodb():
+    """尝试重新连接MongoDB"""
+    global MONGODB_AVAILABLE, MONGODB_URI
+    
+    # 重新初始化连接
+    mongodb_info = init_mongodb_connection()
+    MONGODB_AVAILABLE = mongodb_info["available"]
+    MONGODB_URI = mongodb_info["uri"]
+    
+    return {
+        "timestamp": datetime.now().isoformat(),
+        "mongodb_available": MONGODB_AVAILABLE,
+        "message": "MongoDB重连成功" if MONGODB_AVAILABLE else "MongoDB重连失败"
+    }
 
 @app.post("/api/v1/analyze", response_model=CostAnalysisResponse)
 async def analyze_cost(request: CostAnalysisRequest):
@@ -105,6 +218,10 @@ async def analyze_cost(request: CostAnalysisRequest):
         valid_depths = ["basic", "detailed", "comprehensive"]
         if request.analysis_depth not in valid_depths:
             raise HTTPException(status_code=400, detail=f"无效的分析深度参数，有效值: {', '.join(valid_depths)}")
+        
+        # 检查MongoDB可用性
+        if not MONGODB_AVAILABLE:
+            logger.warning("MongoDB不可用，使用模拟数据")
         
         # 模拟成本分析结果
         total_cost = 152635.80
@@ -158,6 +275,22 @@ async def analyze_cost(request: CostAnalysisRequest):
     except Exception as e:
         logger.error(f"分析成本时发生错误: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")
+
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时执行"""
+    logger.info("成本分析服务正在启动...")
+    # 记录环境信息
+    logger.info(f"环境: {os.getenv('ENVIRONMENT', 'production')}")
+    logger.info(f"调试模式: {os.getenv('DEBUG', 'false')}")
+    logger.info(f"MongoDB可用: {MONGODB_AVAILABLE}")
+    logger.info(f"服务器主机名: {socket.gethostname()}")
+    logger.info(f"PYTHONPATH: {os.getenv('PYTHONPATH', '')}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """应用关闭时执行"""
+    logger.info("成本分析服务正在关闭...")
 
 if __name__ == "__main__":
     import uvicorn
