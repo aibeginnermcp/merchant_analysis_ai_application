@@ -1,0 +1,109 @@
+# 关联交易审计规则模板
+# 包含：关联方识别、交易定价、信息披露等规则
+
+rules:
+  # 关联方识别规则组
+  RELATED-IDENT-001:
+    name: 关联方识别完整性检查
+    description: 检查关联方识别是否完整
+    condition: |
+      exists entity in business_partners where
+        (entity.shareholding_ratio > 0.1 ||
+         entity.board_members overlaps company.board_members) &&
+        entity.id not in related_party_list
+    severity: HIGH
+    action:
+      - 更新关联方清单
+      - 重新评估历史交易
+      - 补充披露文件
+    references:
+      - IAS 24
+      - 企业会计准则第36号
+
+  RELATED-IDENT-002:
+    name: 关联方变更监控
+    description: 监控关联方变更情况
+    condition: |
+      exists change in related_party_changes where
+        change.notification_time - change.effective_time > 5_working_days
+    severity: MEDIUM
+    action:
+      - 要求说明延迟原因
+      - 评估信息披露及时性
+    references:
+      - 上市公司信息披露管理办法
+      - 公司治理准则
+
+  # 交易定价规则组
+  RELATED-PRICE-001:
+    name: 关联交易定价公允性检查
+    description: 检查关联交易定价是否公允
+    condition: |
+      abs(transaction.price / market_price - 1) > 0.1 &&
+      pricing_basis is null
+    severity: HIGH
+    action:
+      - 要求提供定价依据
+      - 聘请评估机构
+      - 补充披露说明
+    references:
+      - 企业会计准则第36号
+      - 转让定价管理规程
+
+  RELATED-PRICE-002:
+    name: 关联方资金占用检查
+    description: 检查是否存在关联方资金占用
+    condition: |
+      related_party_receivables.aging > 180_days &&
+      !special_approval_exists
+    severity: CRITICAL
+    action:
+      - 立即催收
+      - 计提坏账准备
+      - 上报董事会
+    references:
+      - 上市公司规范运作指引
+      - 防范资金占用制度
+
+  # 信息披露规则组
+  RELATED-DISC-001:
+    name: 重大关联交易披露完整性检查
+    description: 检查重大关联交易披露是否完整
+    condition: |
+      transaction.amount > total_assets * 0.01 &&
+      !disclosure_document_exists
+    severity: HIGH
+    action:
+      - 补充披露公告
+      - 召开董事会审议
+      - 提交股东大会
+    references:
+      - 证券法
+      - 上市公司信息披露管理办法
+
+  RELATED-DISC-002:
+    name: 关联交易持续性披露检查
+    description: 检查持续性关联交易的信息披露
+    condition: |
+      transaction.type == 'continuous' &&
+      (actual_amount > approved_amount ||
+       current_year > agreement_end_year)
+    severity: HIGH
+    action:
+      - 暂停交易执行
+      - 重新履行审批程序
+      - 补充披露公告
+    references:
+      - 上市规则
+      - 关联交易管理制度
+
+metadata:
+  version: "1.0.0"
+  last_updated: "2024-03-20"
+  author: "Financial Guardian Team"
+  review_cycle: "QUARTERLY"
+  risk_level: "HIGH"
+  compliance_requirements:
+    - 上市公司信息披露
+    - 公司治理规范
+    - 关联交易管理 

@@ -1,0 +1,145 @@
+version: '3.8'
+
+services:
+  api_gateway:
+    build:
+      context: .
+      dockerfile: docker/gateway/Dockerfile
+      target: development
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - MONGODB_URI=mongodb://mongodb:27017/merchant_analytics
+      - REDIS_URI=redis://redis:6379/0
+      - RABBITMQ_URI=amqp://rabbitmq:5672
+      - CONSUL_HOST=consul
+    depends_on:
+      - mongodb
+      - redis
+      - rabbitmq
+      - consul
+
+  cashflow_service:
+    build:
+      context: .
+      dockerfile: docker/cashflow/Dockerfile
+      target: development
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - ENVIRONMENT=development
+      - MONGODB_URI=mongodb://mongodb:27017/merchant_analytics
+      - RABBITMQ_URI=amqp://rabbitmq:5672
+      - CONSUL_HOST=consul
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - consul
+
+  cost_service:
+    build:
+      context: .
+      dockerfile: docker/cost/Dockerfile
+      target: development
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - ENVIRONMENT=development
+      - MONGODB_URI=mongodb://mongodb:27017/merchant_analytics
+      - RABBITMQ_URI=amqp://rabbitmq:5672
+      - CONSUL_HOST=consul
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - consul
+
+  compliance_service:
+    build:
+      context: .
+      dockerfile: docker/compliance/Dockerfile
+      target: development
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - ENVIRONMENT=development
+      - MONGODB_URI=mongodb://mongodb:27017/merchant_analytics
+      - RABBITMQ_URI=amqp://rabbitmq:5672
+      - CONSUL_HOST=consul
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - consul
+
+  mongodb:
+    image: mongo:4.4
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  redis:
+    image: redis:6
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  consul:
+    image: consul:1.9
+    ports:
+      - "8500:8500"
+    command: agent -dev -client=0.0.0.0
+    volumes:
+      - consul_data:/consul/data
+
+  prometheus:
+    image: prom/prometheus:v2.30.3
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+
+  grafana:
+    image: grafana/grafana:8.2.2
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.27
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"
+      - "14250:14250"
+      - "14268:14268"
+      - "14269:14269"
+      - "9411:9411"
+
+volumes:
+  mongodb_data:
+  redis_data:
+  rabbitmq_data:
+  consul_data:
+  prometheus_data:
+  grafana_data: 

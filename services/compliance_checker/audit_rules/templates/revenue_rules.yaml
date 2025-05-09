@@ -1,0 +1,102 @@
+# 收入确认审计规则模板
+# 包含：收入确认时点、收入计量、特殊交易等规则
+
+rules:
+  # 收入确认时点规则组
+  REVENUE-TIME-001:
+    name: 收入确认时点合规性检查
+    description: 检查收入确认时点是否符合准则要求
+    condition: |
+      (goods_control_transferred == false || 
+       payment_received == false) &&
+      revenue_recognized == true
+    severity: HIGH
+    action:
+      - 标记为重大会计差错
+      - 要求进行账务调整
+      - 重新出具财务报表
+    references:
+      - IFRS 15.31-38
+      - 企业会计准则第14号
+
+  REVENUE-TIME-002:
+    name: 分期收款销售收入确认检查
+    description: 检查分期收款销售的收入确认是否合规
+    condition: |
+      payment_terms > 12_months &&
+      !present_value_calculated
+    severity: MEDIUM
+    action:
+      - 要求计算现值
+      - 区分融资成分
+    references:
+      - IFRS 15.60-65
+      - 企业会计准则应用指南
+
+  # 收入计量规则组
+  REVENUE-MEAS-001:
+    name: 可变对价估计检查
+    description: 检查可变对价估计的合理性
+    condition: |
+      variable_consideration > fixed_consideration * 0.3 &&
+      estimation_basis is null
+    severity: HIGH
+    action:
+      - 要求提供估计依据
+      - 复核历史数据
+    references:
+      - IFRS 15.50-54
+      - 企业会计准则讲解2023
+
+  REVENUE-MEAS-002:
+    name: 销售折扣合规性检查
+    description: 检查销售折扣的会计处理是否合规
+    condition: |
+      discount_rate > 0.2 &&
+      special_approval is null
+    severity: MEDIUM
+    action:
+      - 要求提供商业理由
+      - 复核定价政策
+    references:
+      - 企业销售管理制度
+      - 内部控制手册4.3节
+
+  # 特殊交易规则组
+  REVENUE-SPEC-001:
+    name: 附有销售退回条款的收入确认检查
+    description: 检查附有销售退回条款的收入确认是否合规
+    condition: |
+      return_right_exists == true &&
+      !return_provision_recognized
+    severity: HIGH
+    action:
+      - 要求计提退货准备
+      - 调整收入确认金额
+    references:
+      - IFRS 15.B20-B27
+      - 企业会计准则实施问答
+
+  REVENUE-SPEC-002:
+    name: 委托代销收入确认检查
+    description: 检查委托代销业务的收入确认是否合规
+    condition: |
+      business_type == 'consignment' &&
+      revenue_recognized_before_final_sale == true
+    severity: HIGH
+    action:
+      - 冲销提前确认的收入
+      - 建立代销存货台账
+    references:
+      - 企业会计准则第14号
+      - 商业零售企业会计处理规范
+
+metadata:
+  version: "1.0.0"
+  last_updated: "2024-03-20"
+  author: "Financial Guardian Team"
+  review_cycle: "MONTHLY"
+  applicable_industries:
+    - 零售
+    - 制造
+    - 电商 

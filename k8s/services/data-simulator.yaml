@@ -1,0 +1,166 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-simulator
+  namespace: merchant-analytics
+  labels:
+    app: merchant-analytics
+    component: data-simulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: merchant-analytics
+      component: data-simulator
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: merchant-analytics
+        component: data-simulator
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: data-simulator
+        image: ${DOCKER_REGISTRY}/merchant-analytics-data-simulator:${IMAGE_TAG}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: merchant-analytics-secrets
+              key: mongodb-uri
+        - name: MODULE_NAME
+          value: "services.data_simulator.main"
+        - name: VARIABLE_NAME
+          value: "app"
+        - name: PORT
+          value: "8000"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        volumeMounts:
+        - name: output-volume
+          mountPath: /app/output
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: output-volume
+        persistentVolumeClaim:
+          claimName: data-simulator-output-pvc
+      - name: config-volume
+        configMap:
+          name: data-simulator-config
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-simulator
+  namespace: merchant-analytics
+  labels:
+    app: merchant-analytics
+    component: data-simulator
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: merchant-analytics
+    component: data-simulator
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-simulator-output-pvc
+  namespace: merchant-analytics
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: data-simulator-config
+  namespace: merchant-analytics
+data:
+  simulator_config.yaml: |
+    merchant_types:
+      - name: "large_online_fashion"
+        description: "线上大型服饰电商"
+        transaction_range: [5000, 10000]
+        average_order_value: [120, 500]
+        seasonality_factors:
+          spring: 1.2
+          summer: 0.8
+          autumn: 1.5
+          winter: 1.3
+          
+      - name: "small_3c_store"
+        description: "线上小型3C店铺"
+        transaction_range: [1000, 3000]
+        average_order_value: [200, 800]
+        seasonality_factors:
+          spring: 1.0
+          summer: 1.2
+          autumn: 1.3
+          winter: 1.8
+          
+      - name: "medium_restaurant"
+        description: "线下中型餐饮店"
+        transaction_range: [2000, 5000]
+        average_order_value: [80, 200]
+        seasonality_factors:
+          spring: 1.1
+          summer: 1.3
+          autumn: 1.0
+          winter: 0.9
+          
+      - name: "large_amusement_park"
+        description: "线下大型游乐场"
+        transaction_range: [3000, 8000]
+        average_order_value: [150, 300]
+        seasonality_factors:
+          spring: 1.4
+          summer: 1.8
+          autumn: 1.0
+          winter: 0.6 

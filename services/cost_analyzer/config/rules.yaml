@@ -1,0 +1,62 @@
+# 品类成本分配规则配置
+
+# 3C类规则
+3c:
+  logistics:
+    type: weight_based
+    rate: 5.0  # 元/kg
+  production:
+    type: bom_based
+    components:
+      - name: 电芯
+        base_cost: 10.0
+      - name: 外壳
+        base_cost: 5.0
+      - name: 电路板
+        base_cost: 15.0
+
+# 服饰类规则
+clothing:
+  storage:
+    type: volume_based
+    rate: 80.0  # 元/m³/月
+  labor:
+    type: complexity_based
+    rates:
+      basic: 1.0  # 元/件
+      custom: 5.0  # 元/件
+
+# 食品类规则
+food:
+  spoilage:
+    type: shelf_life_based
+    rates:
+      - days: 7
+        rate: 0.10  # 10%
+      - days: 30
+        rate: 0.05  # 5%
+      - days: 9999
+        rate: 0.02  # 2%
+  cold_chain:
+    type: distance_based
+    rate: 0.03  # 元/kg/km
+
+# 家居类规则
+furniture:
+  transport:
+    type: volume_based
+    rate: 120.0  # 元/m³
+  material:
+    type: material_based
+    rates:
+      wood: 15.0  # 元/件
+      board: 8.0  # 元/件
+
+# 异常检测配置
+anomaly_detection:
+  method: zscore
+  threshold: 3.0  # 标准差倍数
+  metrics:
+    - logistics_cost_ratio
+    - production_cost_ratio
+    - labor_cost_ratio 

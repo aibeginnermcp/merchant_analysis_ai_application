@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cashflow-predictor
+  namespace: merchant-analytics
+  labels:
+    app: merchant-analytics
+    component: cashflow-predictor
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: merchant-analytics
+      component: cashflow-predictor
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: merchant-analytics
+        component: cashflow-predictor
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8002"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: cashflow-predictor
+        image: ${DOCKER_REGISTRY}/merchant-analytics-cashflow-predictor:${IMAGE_TAG}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8002
+          name: http
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: merchant-analytics-secrets
+              key: mongodb-uri
+        - name: MODULE_NAME
+          value: "services.cashflow_predictor.main"
+        - name: VARIABLE_NAME
+          value: "app"
+        - name: PORT
+          value: "8002"
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "512Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8002
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8002
+          initialDelaySeconds: 20
+          periodSeconds: 30
+        volumeMounts:
+        - name: models-volume
+          mountPath: /app/models
+      volumes:
+      - name: models-volume
+        persistentVolumeClaim:
+          claimName: cashflow-models-pvc
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cashflow-predictor
+  namespace: merchant-analytics
+  labels:
+    app: merchant-analytics
+    component: cashflow-predictor
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8002
+    targetPort: 8002
+    protocol: TCP
+    name: http
+  selector:
+    app: merchant-analytics
+    component: cashflow-predictor
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cashflow-models-pvc
+  namespace: merchant-analytics
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard 

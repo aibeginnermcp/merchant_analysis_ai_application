@@ -1,0 +1,278 @@
+syntax = "proto3";
+
+package merchant.analysis.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// 商户基础信息
+message Merchant {
+  string merchant_id = 1;
+  string merchant_name = 2;
+  string business_type = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+// 时间范围
+message TimeRange {
+  string start_date = 1;
+  string end_date = 2;
+}
+
+// 分析参数
+message AnalysisParameters {
+  int32 prediction_days = 1;
+  float confidence_level = 2;
+}
+
+// 分析类型
+enum AnalysisType {
+  ANALYSIS_TYPE_UNSPECIFIED = 0;
+  ANALYSIS_TYPE_CASHFLOW = 1;
+  ANALYSIS_TYPE_COST = 2;
+  ANALYSIS_TYPE_COMPLIANCE = 3;
+}
+
+// 分析状态
+enum AnalysisStatus {
+  ANALYSIS_STATUS_UNSPECIFIED = 0;
+  ANALYSIS_STATUS_PROCESSING = 1;
+  ANALYSIS_STATUS_COMPLETED = 2;
+  ANALYSIS_STATUS_FAILED = 3;
+}
+
+// 分析请求
+message AnalysisRequest {
+  string merchant_id = 1;
+  TimeRange time_range = 2;
+  repeated AnalysisType analysis_types = 3;
+  map<string, string> extra_params = 4;
+}
+
+// 分析响应
+message AnalysisResponse {
+  string request_id = 1;
+  repeated AnalysisResult results = 2;
+  ResponseStatus status = 3;
+}
+
+// 分析结果
+message AnalysisResult {
+  AnalysisType type = 1;
+  oneof result {
+    CashflowResult cashflow = 2;
+    CostResult cost = 3;
+    ComplianceResult compliance = 4;
+  }
+}
+
+// 响应状态
+message ResponseStatus {
+  int32 code = 1;
+  string message = 2;
+  repeated ErrorDetail errors = 3;
+}
+
+// 错误详情
+message ErrorDetail {
+  string service = 1;
+  string code = 2;
+  string message = 3;
+}
+
+// 现金流请求
+message CashflowRequest {
+  string merchant_id = 1;
+  TimeRange time_range = 2;
+  string model_version = 3;
+}
+
+// 现金流响应
+message CashflowResponse {
+  CashflowResult result = 1;
+  ResponseStatus status = 2;
+}
+
+// 现金流结果
+message CashflowResult {
+  repeated CashflowPrediction predictions = 1;
+  CashflowMetrics metrics = 2;
+}
+
+// 现金流预测
+message CashflowPrediction {
+  string date = 1;
+  double predicted_amount = 2;
+  double confidence_level = 3;
+}
+
+// 现金流指标
+message CashflowMetrics {
+  double average_daily_cash = 1;
+  double volatility = 2;
+  double trend_coefficient = 3;
+}
+
+// 成本请求
+message CostRequest {
+  string merchant_id = 1;
+  TimeRange time_range = 2;
+  repeated CostCategory categories = 3;
+}
+
+// 成本类别
+enum CostCategory {
+  COST_CATEGORY_UNSPECIFIED = 0;
+  COST_CATEGORY_DIRECT = 1;
+  COST_CATEGORY_INDIRECT = 2;
+  COST_CATEGORY_OPERATION = 3;
+}
+
+// 成本响应
+message CostResponse {
+  CostResult result = 1;
+  ResponseStatus status = 2;
+}
+
+// 成本结果
+message CostResult {
+  map<string, CostBreakdown> breakdowns = 1;
+  CostSummary summary = 2;
+}
+
+// 成本明细
+message CostBreakdown {
+  CostCategory category = 1;
+  double amount = 2;
+  double percentage = 3;
+  map<string, double> sub_items = 4;
+}
+
+// 成本汇总
+message CostSummary {
+  double total_cost = 1;
+  double gross_margin = 2;
+  double net_margin = 3;
+}
+
+// 合规请求
+message ComplianceRequest {
+  string merchant_id = 1;
+  TimeRange time_range = 2;
+  repeated string rule_sets = 3;
+}
+
+// 合规响应
+message ComplianceResponse {
+  ComplianceResult result = 1;
+  ResponseStatus status = 2;
+}
+
+// 合规结果
+message ComplianceResult {
+  repeated ComplianceIssue issues = 1;
+  ComplianceScore score = 2;
+}
+
+// 合规问题
+message ComplianceIssue {
+  string rule_id = 1;
+  string description = 2;
+  Severity severity = 3;
+  string recommendation = 4;
+}
+
+// 严重程度
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_LOW = 1;
+  SEVERITY_MEDIUM = 2;
+  SEVERITY_HIGH = 3;
+  SEVERITY_CRITICAL = 4;
+}
+
+// 合规评分
+message ComplianceScore {
+  double overall_score = 1;
+  map<string, double> category_scores = 2;
+  string rating = 3;
+}
+
+// 数据模拟服务
+service DataSimulator {
+  // 模拟交易数据
+  rpc SimulateTransactions(SimulateTransactionsRequest) returns (SimulateTransactionsResponse);
+  // 模拟成本数据
+  rpc SimulateCosts(SimulateCostsRequest) returns (SimulateCostsResponse);
+}
+
+message SimulateTransactionsRequest {
+  Merchant merchant = 1;
+  TimeRange time_range = 2;
+}
+
+message SimulateTransactionsResponse {
+  map<string, string> transaction_data = 1;
+}
+
+message SimulateCostsRequest {
+  Merchant merchant = 1;
+  TimeRange time_range = 2;
+}
+
+message SimulateCostsResponse {
+  map<string, string> cost_data = 1;
+}
+
+// 现金流预测服务
+service CashflowPredictor {
+  // 预测现金流
+  rpc PredictCashflow(PredictCashflowRequest) returns (PredictCashflowResponse);
+}
+
+message PredictCashflowRequest {
+  AnalysisRequest analysis_request = 1;
+  map<string, string> transaction_data = 2;
+}
+
+message PredictCashflowResponse {
+  AnalysisResponse analysis_response = 1;
+}
+
+// 成本分析服务
+service CostAnalyzer {
+  // 分析成本结构
+  rpc AnalyzeCost(AnalyzeCostRequest) returns (AnalyzeCostResponse);
+  // 优化成本结构
+  rpc OptimizeCost(OptimizeCostRequest) returns (OptimizeCostResponse);
+}
+
+message AnalyzeCostRequest {
+  AnalysisRequest analysis_request = 1;
+  map<string, string> cost_data = 2;
+}
+
+message AnalyzeCostResponse {
+  AnalysisResponse analysis_response = 1;
+}
+
+message OptimizeCostRequest {
+  AnalysisRequest analysis_request = 1;
+  map<string, string> cost_data = 2;
+}
+
+message OptimizeCostResponse {
+  AnalysisResponse analysis_response = 1;
+}
+
+// 商户分析服务
+service MerchantAnalysisService {
+  // 获取完整分析报告
+  rpc GetFullAnalysisReport (AnalysisRequest) returns (AnalysisResponse);
+  // 获取现金流预测
+  rpc GetCashflowPrediction (CashflowRequest) returns (CashflowResponse);
+  // 获取成本分析
+  rpc GetCostAnalysis (CostRequest) returns (CostResponse);
+  // 获取合规检查结果
+  rpc GetComplianceCheck (ComplianceRequest) returns (ComplianceResponse);
+} 

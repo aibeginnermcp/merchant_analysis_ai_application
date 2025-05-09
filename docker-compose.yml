@@ -1,0 +1,160 @@
+version: '3.8'
+
+services:
+  # API网关服务
+  api_gateway:
+    build:
+      context: .
+      dockerfile: services/api_gateway/Dockerfile
+    container_name: api_gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - JWT_SECRET=your_secret_key_change_in_production
+      - DATA_SIMULATOR_URL=http://data_simulator:8000
+      - CASHFLOW_PREDICTOR_URL=http://cashflow_predictor:8002
+      - COST_ANALYZER_URL=http://cost_analyzer:8001
+      - COMPLIANCE_CHECKER_URL=http://compliance_checker:8003
+      - DEBUG=false
+      - MONGODB_URI=mongodb://mongodb:27017
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - data_simulator
+      - cashflow_predictor
+      - cost_analyzer
+      - compliance_checker
+      - mongodb
+      - redis
+    networks:
+      - merchant_analysis_network
+
+  # 数据模拟服务
+  data_simulator:
+    build:
+      context: .
+      dockerfile: services/data_simulator/Dockerfile
+    container_name: data_simulator
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
+      - DEBUG=false
+    depends_on:
+      - mongodb
+    networks:
+      - merchant_analysis_network
+
+  # 现金流预测服务
+  cashflow_predictor:
+    build:
+      context: .
+      dockerfile: services/cashflow_predictor/Dockerfile
+    container_name: cashflow_predictor
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
+      - DEBUG=false
+    depends_on:
+      - mongodb
+      - data_simulator
+    networks:
+      - merchant_analysis_network
+
+  # 成本分析服务
+  cost_analyzer:
+    build:
+      context: .
+      dockerfile: services/cost_analyzer/Dockerfile
+    container_name: cost_analyzer
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
+      - DEBUG=false
+    depends_on:
+      - mongodb
+      - data_simulator
+    networks:
+      - merchant_analysis_network
+
+  # 合规检查服务
+  compliance_checker:
+    build:
+      context: .
+      dockerfile: services/compliance_checker/Dockerfile
+    container_name: compliance_checker
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
+      - DEBUG=false
+    depends_on:
+      - mongodb
+      - data_simulator
+    networks:
+      - merchant_analysis_network
+
+  # MongoDB数据库
+  mongodb:
+    image: mongo:5.0
+    container_name: mongodb
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - merchant_analysis_network
+
+  # Redis缓存
+  redis:
+    image: redis:6.2-alpine
+    container_name: redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - merchant_analysis_network
+
+  # Prometheus监控
+  prometheus:
+    image: prom/prometheus:v2.36.0
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    networks:
+      - merchant_analysis_network
+
+  # Grafana仪表盘
+  grafana:
+    image: grafana/grafana:9.0.0
+    container_name: grafana
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - merchant_analysis_network
+
+networks:
+  merchant_analysis_network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  redis_data:
+  prometheus_data:
+  grafana_data: 

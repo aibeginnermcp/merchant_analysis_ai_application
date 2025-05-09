@@ -1,0 +1,159 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compliance-checker
+  namespace: merchant-analytics
+  labels:
+    app: merchant-analytics
+    component: compliance-checker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: merchant-analytics
+      component: compliance-checker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: merchant-analytics
+        component: compliance-checker
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8003"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: compliance-checker
+        image: ${DOCKER_REGISTRY}/merchant-analytics-compliance-checker:${IMAGE_TAG}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8003
+          name: http
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: merchant-analytics-secrets
+              key: mongodb-uri
+        - name: MODULE_NAME
+          value: "services.compliance_checker.main"
+        - name: VARIABLE_NAME
+          value: "app"
+        - name: PORT
+          value: "8003"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8003
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8003
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        volumeMounts:
+        - name: audit-rules-volume
+          mountPath: /app/audit_rules
+          readOnly: true
+        - name: reports-volume
+          mountPath: /app/reports
+      volumes:
+      - name: audit-rules-volume
+        configMap:
+          name: audit-rules-config
+      - name: reports-volume
+        persistentVolumeClaim:
+          claimName: compliance-reports-pvc
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: compliance-checker
+  namespace: merchant-analytics
+  labels:
+    app: merchant-analytics
+    component: compliance-checker
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8003
+    targetPort: 8003
+    protocol: TCP
+    name: http
+  selector:
+    app: merchant-analytics
+    component: compliance-checker
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: compliance-reports-pvc
+  namespace: merchant-analytics
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: audit-rules-config
+  namespace: merchant-analytics
+data:
+  financial_rules.yaml: |
+    financial_rules:
+      # 税务合规规则
+      tax_compliance:
+        - rule_id: "TAX001"
+          name: "增值税发票合规性"
+          description: "检查增值税发票是否符合规定"
+          severity: "高"
+        - rule_id: "TAX002"
+          name: "企业所得税预缴检查"
+          description: "检查企业所得税是否按时预缴"
+          severity: "高"
+
+      # 财务报表规则
+      financial_statement:
+        - rule_id: "FS001"
+          name: "利润表与资产负债表一致性"
+          description: "检查利润表与资产负债表数据是否一致"
+          severity: "中"
+        - rule_id: "FS002"
+          name: "现金流量表合规性"
+          description: "检查现金流量表是否符合会计准则"
+          severity: "中"
+
+      # 内部控制规则
+      internal_control:
+        - rule_id: "IC001"
+          name: "大额支出审批流程"
+          description: "检查大额支出是否经过适当审批"
+          severity: "中"
+        - rule_id: "IC002"
+          name: "关联交易合规性"
+          description: "检查关联交易是否合规且披露"
+          severity: "高" 

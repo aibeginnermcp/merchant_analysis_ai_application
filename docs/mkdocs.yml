@@ -1,0 +1,58 @@
+site_name: 商户智能经营分析平台
+site_description: 商户智能经营分析平台技术文档
+site_author: Your Team
+repo_url: https://github.com/your-org/merchant-bi
+repo_name: merchant-bi
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.highlight
+  palette:
+    primary: blue
+    accent: blue
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - footnotes
+  - meta
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.emoji
+
+nav:
+  - 首页: index.md
+  - 快速开始:
+    - 环境准备: getting-started/prerequisites.md
+    - 安装部署: getting-started/installation.md
+    - 配置说明: getting-started/configuration.md
+  - API文档:
+    - 概述: api/overview.md
+    - 认证授权: api/authentication.md
+    - 现金流预测: api/cashflow.md
+    - 成本分析: api/cost-analysis.md
+    - 合规检查: api/compliance.md
+    - 错误码: api/error-codes.md
+  - 架构设计:
+    - 系统架构: architecture/overview.md
+    - 数据模型: architecture/data-model.md
+    - 服务通信: architecture/communication.md
+    - 安全设计: architecture/security.md
+  - 部署运维:
+    - 部署指南: deployment/guide.md
+    - 监控告警: deployment/monitoring.md
+    - 日志管理: deployment/logging.md
+    - 备份恢复: deployment/backup.md
+  - 开发指南:
+    - 开发规范: development/standards.md
+    - 测试规范: development/testing.md
+    - 贡献指南: development/contributing.md
+    - 版本发布: development/release.md 

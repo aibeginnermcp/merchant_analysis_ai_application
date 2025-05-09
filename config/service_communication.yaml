@@ -1,0 +1,65 @@
+service_protocols:
+  http:
+    version: "2.0"
+    base_path: "/api/v1"
+    timeout: 30  # seconds
+    retry:
+      max_attempts: 3
+      initial_delay: 1  # seconds
+      max_delay: 5  # seconds
+
+  grpc:
+    version: "1.0"
+    keepalive:
+      timeout: 20  # seconds
+      permitWithoutStream: true
+
+data_formats:
+  request:
+    content_type: "application/json"
+    charset: "utf-8"
+    schema_validation: true
+    
+  response:
+    content_type: "application/json"
+    charset: "utf-8"
+    pagination:
+      page_size: 20
+      max_page_size: 100
+
+error_codes:
+  business:
+    4001: "数据验证失败"
+    4002: "业务规则违反"
+    4003: "资源不存在"
+    4004: "权限不足"
+  
+  system:
+    5001: "服务暂时不可用"
+    5002: "依赖服务超时"
+    5003: "系统内部错误"
+
+security:
+  jwt:
+    algorithm: "HS256"
+    expire_minutes: 60
+    refresh_expire_days: 7
+  
+  cors:
+    allow_origins: ["*"]
+    allow_methods: ["GET", "POST", "PUT", "DELETE"]
+    allow_headers: ["*"]
+    
+monitoring:
+  metrics:
+    enable: true
+    path: "/metrics"
+  
+  tracing:
+    enable: true
+    sampler_rate: 0.1
+    
+logging:
+  level: "INFO"
+  format: "json"
+  output: ["console", "file"] 

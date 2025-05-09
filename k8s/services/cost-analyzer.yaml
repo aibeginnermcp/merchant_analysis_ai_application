@@ -1,0 +1,135 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cost-analyzer
+  namespace: merchant-analytics
+  labels:
+    app: merchant-analytics
+    component: cost-analyzer
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: merchant-analytics
+      component: cost-analyzer
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: merchant-analytics
+        component: cost-analyzer
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8001"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: cost-analyzer
+        image: ${DOCKER_REGISTRY}/merchant-analytics-cost-analyzer:${IMAGE_TAG}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8001
+          name: http
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: merchant-analytics-secrets
+              key: mongodb-uri
+        - name: MODULE_NAME
+          value: "services.cost_analyzer.main"
+        - name: VARIABLE_NAME
+          value: "app"
+        - name: PORT
+          value: "8001"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        volumeMounts:
+        - name: cost-rules-volume
+          mountPath: /app/config/rules
+          readOnly: true
+      volumes:
+      - name: cost-rules-volume
+        configMap:
+          name: cost-rules-config
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cost-analyzer
+  namespace: merchant-analytics
+  labels:
+    app: merchant-analytics
+    component: cost-analyzer
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8001
+    targetPort: 8001
+    protocol: TCP
+    name: http
+  selector:
+    app: merchant-analytics
+    component: cost-analyzer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cost-rules-config
+  namespace: merchant-analytics
+data:
+  rules.yaml: |
+    cost_rules:
+      # 3C类规则
+      3c_category:
+        logistics_weight_factor: 5.0
+        production_bom_based: true
+      
+      # 服饰类规则
+      fashion_category:
+        storage_volume_factor: 80.0
+        labor_cost:
+          basic: 1.0
+          custom: 5.0
+      
+      # 食品类规则
+      food_category:
+        loss_rate:
+          shelf_life_lt_7: 0.10
+          shelf_life_7_30: 0.05
+          shelf_life_gt_30: 0.02
+        cold_chain_rate: 0.03
+      
+      # 家居类规则
+      furniture_category:
+        transport_volume_factor: 120.0
+        material_cost:
+          wood: 15.0
+          board: 8.0 

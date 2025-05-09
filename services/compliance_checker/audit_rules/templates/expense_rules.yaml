@@ -1,0 +1,96 @@
+# 费用合规审计规则模板
+# 包含：促销费用、招待费用、差旅费用等常见费用合规检查规则
+
+rules:
+  # 促销费用规则组
+  EXPENSE-PROMO-001:
+    name: 促销费用超限检查
+    description: 检查促销费用是否超过营业收入的合理比例
+    condition: |
+      promotion_expense / revenue > 0.05 && 
+      approval_doc is null
+    severity: HIGH
+    action:
+      - 冻结促销费用支付审批
+      - 生成异常预警通知
+      - 要求补充超额说明文件
+    references:
+      - 企业内部控制规范第32条
+      - IFRS 15收入准则
+
+  EXPENSE-PROMO-002:
+    name: 促销费用异常波动检查
+    description: 检查促销费用环比波动是否异常
+    condition: |
+      abs(current_month_expense / last_month_expense - 1) > 0.3 &&
+      explanation_doc is null
+    severity: MEDIUM
+    action:
+      - 生成波动分析报告
+      - 要求部门负责人确认
+    references:
+      - 企业财务管理制度4.2.3条
+
+  # 招待费用规则组
+  EXPENSE-ENTER-001:
+    name: 招待费用单笔限额检查
+    description: 检查单笔招待费用是否超过限额标准
+    condition: |
+      entertainment_expense.single_amount > 1000 &&
+      special_approval is null
+    severity: MEDIUM
+    action:
+      - 标记为待复核事项
+      - 通知合规部门审查
+    references:
+      - 企业费用管理办法第15条
+
+  EXPENSE-ENTER-002:
+    name: 招待费用发票合规性检查
+    description: 检查招待费用发票的合规性
+    condition: |
+      !invoice.is_valid || 
+      invoice.type not in ['餐饮', '住宿'] ||
+      invoice.time > expense_time + 24h
+    severity: HIGH
+    action:
+      - 拒绝报销申请
+      - 记录违规事项
+    references:
+      - 国家税务总局发票管理办法
+
+  # 差旅费用规则组
+  EXPENSE-TRAVEL-001:
+    name: 差旅费用标准检查
+    description: 检查差旅费用是否符合公司标准
+    condition: |
+      (hotel_expense > standard_hotel_rate || 
+       flight_class > allowed_flight_class) &&
+      special_approval is null
+    severity: MEDIUM
+    action:
+      - 超标部分由个人承担
+      - 通知部门经理审核
+    references:
+      - 企业差旅费管理规定
+
+  EXPENSE-TRAVEL-002:
+    name: 差旅费用重复报销检查
+    description: 检查是否存在重复报销情况
+    condition: |
+      exists duplicate_record in history_records where
+        current.time_period overlaps duplicate_record.time_period &&
+        current.employee_id == duplicate_record.employee_id
+    severity: HIGH
+    action:
+      - 立即冻结报销审批
+      - 启动合规调查
+      - 记录违规行为
+    references:
+      - 企业反舞弊管理制度
+
+metadata:
+  version: "1.0.0"
+  last_updated: "2024-03-20"
+  author: "Financial Guardian Team"
+  review_cycle: "QUARTERLY" 

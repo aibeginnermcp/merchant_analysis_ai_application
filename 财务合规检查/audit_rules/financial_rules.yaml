@@ -1,0 +1,156 @@
+# 财务合规审计规则模板库
+# 包含常见财务风险点的检查规则
+
+# 1. 费用类规则
+expense_rules:
+  rule_101:
+    name: 大额费用支出审批检查
+    description: 检查大额费用支出是否经过适当审批
+    condition:
+      amount_threshold: 100000  # 金额阈值：10万
+      approval_level: "部门总监"  # 要求审批层级
+    severity: high
+    action:
+      - 暂停支付
+      - 发送预警邮件
+      - 生成审计底稿
+    references:
+      - 企业内控制度4.2.1
+      - 费用管理办法第12条
+  
+  rule_102:
+    name: 费用报销发票检查
+    description: 检查费用报销是否具备有效发票
+    condition:
+      require_invoice: true
+      invoice_match_amount: true
+    severity: medium
+    action:
+      - 退回报销申请
+      - 要求补充发票
+    references:
+      - 财务报销制度2.3节
+      - 发票管理办法
+
+# 2. 收入类规则
+revenue_rules:
+  rule_201:
+    name: 收入确认时点检查
+    description: 检查收入确认是否符合准则要求
+    condition:
+      - delivery_complete: true
+      - customer_acceptance: true
+      - payment_received: true
+    severity: high
+    action:
+      - 标记收入确认风险
+      - 要求补充支持性文件
+    references:
+      - ASC 606
+      - IFRS 15
+  
+  rule_202:
+    name: 销售退回异常检查
+    description: 检查异常的销售退回情况
+    condition:
+      return_ratio_threshold: 0.05  # 退货率阈值5%
+      single_return_amount: 50000  # 单笔退货金额阈值
+    severity: medium
+    action:
+      - 生成异常分析报告
+      - 要求业务部门说明
+    references:
+      - 销售管理制度3.4节
+
+# 3. 资产类规则
+asset_rules:
+  rule_301:
+    name: 固定资产减值检查
+    description: 检查固定资产是否存在减值迹象
+    condition:
+      - utilization_rate_threshold: 0.3  # 使用率阈值
+      - maintenance_cost_ratio: 0.4  # 维护成本占比阈值
+      - technology_obsolescence: true  # 技术过时考量
+    severity: high
+    action:
+      - 进行减值测试
+      - 聘请评估机构
+    references:
+      - IAS 36
+      - 企业会计准则第8号
+
+  rule_302:
+    name: 存货周转率异常检查
+    description: 检查存货周转是否异常
+    condition:
+      turnover_days_threshold: 180  # 周转天数阈值
+      inventory_age_threshold: 365  # 库龄阈值（天）
+    severity: medium
+    action:
+      - 要求清理计划
+      - 评估跌价准备
+    references:
+      - 存货管理制度
+      - 企业会计准则第1号
+
+# 4. 关联交易规则
+related_party_rules:
+  rule_401:
+    name: 关联交易审批检查
+    description: 检查关联交易是否经过恰当审批
+    condition:
+      amount_threshold: 1000000  # 100万以上需董事会审批
+      disclosure_required: true
+    severity: critical
+    action:
+      - 暂停交易
+      - 补充审批流程
+      - 信息披露检查
+    references:
+      - 上市公司信息披露管理办法
+      - 公司关联交易管理制度
+
+  rule_402:
+    name: 关联方定价公允性检查
+    description: 检查关联交易定价是否公允
+    condition:
+      price_variance_threshold: 0.15  # 与市场价格偏差阈值
+      documentation_required: true  # 要求定价依据文档
+    severity: high
+    action:
+      - 要求价格论证
+      - 聘请独立评估
+    references:
+      - 转让定价管理规定
+      - OECD转让定价指南
+
+# 5. 财务报告规则
+financial_reporting_rules:
+  rule_501:
+    name: 财务报表项目异常波动检查
+    description: 检查财务报表项目是否存在异常波动
+    condition:
+      variance_threshold: 0.3  # 环比波动阈值
+      yoy_variance_threshold: 0.5  # 同比波动阈值
+    severity: high
+    action:
+      - 生成波动分析报告
+      - 要求管理层说明
+    references:
+      - 信息披露准则
+      - 企业会计准则
+
+  rule_502:
+    name: 会计政策变更合规性检查
+    description: 检查会计政策变更是否合规
+    condition:
+      approval_required: true
+      disclosure_required: true
+      retrospective_application: true
+    severity: critical
+    action:
+      - 审计委员会审议
+      - 补充披露文件
+    references:
+      - 企业会计准则第28号
+      - 公司治理准则 

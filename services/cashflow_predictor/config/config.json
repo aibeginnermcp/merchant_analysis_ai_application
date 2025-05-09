@@ -1,0 +1,56 @@
+{
+    "data_processing": {
+        "date_column": "date",
+        "amount_column": "amount",
+        "merchant_type_column": "merchant_type",
+        "outlier_threshold": 3.0,
+        "min_date": "2023-01-01",
+        "max_date": "2024-12-31"
+    },
+    "model": {
+        "train_test_split_ratio": 0.8,
+        "prediction_days": 30,
+        "confidence_level": 0.95,
+        "max_diff_order": 2,
+        "seasonal_period": 7,
+        "grid_search": {
+            "p_range": [0, 1, 2],
+            "d_range": [0, 1],
+            "q_range": [0, 1, 2]
+        }
+    },
+    "visualization": {
+        "output_dir": "reports",
+        "figure_format": "png",
+        "dpi": 300,
+        "style": "seaborn",
+        "colors": {
+            "historical": "blue",
+            "prediction": "red",
+            "confidence": "lightcoral"
+        },
+        "font": {
+            "family": "Arial Unicode MS",
+            "size": {
+                "title": 14,
+                "label": 12,
+                "tick": 10
+            }
+        }
+    },
+    "report": {
+        "title": "现金流预测分析报告",
+        "sections": [
+            "数据概览",
+            "预测结果",
+            "模型评估",
+            "风险分析"
+        ],
+        "metrics": [
+            "mae",
+            "rmse",
+            "mape"
+        ],
+        "risk_threshold": 0
+    }
+} 

@@ -1,0 +1,350 @@
+openapi: 3.0.0
+info:
+  title: 现金流预测服务 API
+  description: |
+    提供商户现金流预测相关的API接口，包括：
+    - 现金流预测
+    - 现金流模式分析
+    - 场景模拟
+    - 风险评估
+  version: 1.0.0
+  contact:
+    name: 技术支持团队
+    email: support@example.com
+
+servers:
+  - url: http://localhost:8001
+    description: 本地开发环境
+  - url: https://api.example.com/cashflow
+    description: 生产环境
+
+tags:
+  - name: prediction
+    description: 现金流预测相关接口
+  - name: analysis
+    description: 现金流分析相关接口
+  - name: simulation
+    description: 场景模拟相关接口
+
+paths:
+  /api/v1/cashflow/predict:
+    post:
+      tags:
+        - prediction
+      summary: 预测现金流
+      description: |
+        对指定商户在给定时间范围内的现金流进行预测。
+        
+        预测内容包括：
+        - 现金流入预测
+        - 现金流出预测
+        - 净现金流预测
+        - 置信区间
+        - 风险评估
+        - 预警信息
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PredictionRequest'
+      responses:
+        '200':
+          description: 预测成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictionResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/cashflow/pattern/{merchant_id}:
+    get:
+      tags:
+        - analysis
+      summary: 分析现金流模式
+      description: |
+        分析指定商户的现金流模式。
+        
+        分析内容包括：
+        - 周期性模式
+        - 季节性特征
+        - 趋势特征
+        - 异常模式
+      parameters:
+        - name: merchant_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 商户ID
+        - name: lookback_days
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 365
+          description: 回溯天数
+      responses:
+        '200':
+          description: 分析成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatternAnalysis'
+        '404':
+          description: 未找到商户数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/cashflow/simulate/{merchant_id}:
+    post:
+      tags:
+        - simulation
+      summary: 模拟现金流场景
+      description: |
+        模拟不同场景下的现金流变化。
+        
+        支持的场景类型：
+        - 收入变化
+        - 支出变化
+        - 时间变化
+        - 概率变化
+      parameters:
+        - name: merchant_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 商户ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulationRequest'
+      responses:
+        '200':
+          description: 模拟成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    PredictionRequest:
+      type: object
+      required:
+        - merchant_id
+        - start_date
+        - end_date
+      properties:
+        merchant_id:
+          type: string
+          description: 商户ID
+        start_date:
+          type: string
+          format: date-time
+          description: 预测开始日期
+        end_date:
+          type: string
+          format: date-time
+          description: 预测结束日期
+        granularity:
+          type: string
+          enum: [daily, weekly, monthly]
+          default: daily
+          description: 预测粒度
+      example:
+        merchant_id: "M001"
+        start_date: "2024-01-01T00:00:00Z"
+        end_date: "2024-12-31T23:59:59Z"
+        granularity: "daily"
+
+    PredictionResponse:
+      type: object
+      properties:
+        inflow_prediction:
+          type: object
+          additionalProperties:
+            type: number
+          description: 现金流入预测
+        outflow_prediction:
+          type: object
+          additionalProperties:
+            type: number
+          description: 现金流出预测
+        net_cashflow:
+          type: object
+          additionalProperties:
+            type: number
+          description: 净现金流预测
+        confidence_intervals:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              lower:
+                type: number
+              upper:
+                type: number
+          description: 预测置信区间
+        risk_assessment:
+          type: object
+          properties:
+            overall_risk:
+              type: string
+              enum: [LOW, MEDIUM, HIGH]
+            risk_factors:
+              type: array
+              items:
+                type: object
+            risk_metrics:
+              type: object
+          description: 风险评估结果
+        alerts:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              severity:
+                type: string
+              description:
+                type: string
+          description: 预警信息
+
+    PatternAnalysis:
+      type: object
+      properties:
+        seasonal_patterns:
+          type: object
+          description: 季节性模式
+        trend_analysis:
+          type: object
+          description: 趋势分析
+        anomaly_detection:
+          type: array
+          items:
+            type: object
+          description: 异常检测结果
+
+    SimulationRequest:
+      type: object
+      required:
+        - scenarios
+      properties:
+        scenarios:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - changes
+            properties:
+              name:
+                type: string
+                description: 场景名称
+              description:
+                type: string
+                description: 场景描述
+              changes:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - type
+                    - change_type
+                    - value
+                  properties:
+                    type:
+                      type: string
+                      enum: [inflow, outflow]
+                    category:
+                      type: string
+                    change_type:
+                      type: string
+                      enum: [percentage, absolute]
+                    value:
+                      type: number
+      example:
+        scenarios:
+          - name: "收入增长"
+            description: "模拟收入增长10%"
+            changes:
+              - type: "inflow"
+                category: "sales"
+                change_type: "percentage"
+                value: 10
+
+    SimulationResponse:
+      type: object
+      properties:
+        scenarios:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              results:
+                type: object
+              impact_assessment:
+                type: object
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: 错误代码
+        message:
+          type: string
+          description: 错误信息
+        details:
+          type: object
+          description: 错误详情
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+security:
+  - ApiKeyAuth: [] 

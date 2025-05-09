@@ -1,0 +1,55 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: merchant-analytics
+
+resources:
+  - services/namespace.yaml
+  - services/secrets.yaml
+  - services/database.yaml
+  - services/api-gateway.yaml
+  - services/cashflow-predictor.yaml
+  - services/cost-analyzer.yaml
+  - services/compliance-checker.yaml
+  - services/data-simulator.yaml
+  - services/monitoring.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: merchant-analytics
+  app.kubernetes.io/managed-by: kustomize
+
+vars:
+  - name: DOCKER_REGISTRY
+    objref:
+      kind: ConfigMap
+      name: deployment-config
+      apiVersion: v1
+    fieldref:
+      fieldpath: data.docker_registry
+  - name: IMAGE_TAG
+    objref:
+      kind: ConfigMap
+      name: deployment-config
+      apiVersion: v1
+    fieldref:
+      fieldpath: data.image_tag
+  - name: JWT_SECRET
+    objref:
+      kind: Secret
+      name: merchant-analytics-secrets
+      apiVersion: v1
+    fieldref:
+      fieldpath: data.jwt-secret
+  - name: GRAFANA_PASSWORD
+    objref:
+      kind: Secret
+      name: grafana-admin-credentials
+      apiVersion: v1
+    fieldref:
+      fieldpath: data.password
+
+configMapGenerator:
+  - name: deployment-config
+    literals:
+      - docker_registry=merchant-analytics
+      - image_tag=latest 

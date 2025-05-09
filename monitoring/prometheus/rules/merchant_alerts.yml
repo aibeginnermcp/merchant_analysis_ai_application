@@ -1,0 +1,82 @@
+groups:
+  - name: merchant_alerts
+    rules:
+      # 服务健康检查告警
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "服务 {{ $labels.instance }} 已停止运行"
+          description: "服务 {{ $labels.instance }} 已停止运行超过1分钟"
+
+      # API响应时间告警
+      - alert: HighResponseTime
+        expr: http_request_duration_seconds{quantile="0.9"} > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "服务 {{ $labels.instance }} 响应时间过高"
+          description: "服务 {{ $labels.instance }} 90%的请求响应时间超过1秒，持续5分钟"
+
+      # 错误率告警
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "服务 {{ $labels.instance }} 错误率过高"
+          description: "服务 {{ $labels.instance }} 错误率超过10%，持续5分钟"
+
+      # 内存使用率告警
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / process_memory_bytes > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "服务 {{ $labels.instance }} 内存使用率过高"
+          description: "服务 {{ $labels.instance }} 内存使用率超过80%，持续5分钟"
+
+      # CPU使用率告警
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "服务 {{ $labels.instance }} CPU使用率过高"
+          description: "服务 {{ $labels.instance }} CPU使用率超过80%，持续5分钟"
+
+      # 请求队列积压告警
+      - alert: HighRequestQueue
+        expr: rabbitmq_queue_messages > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "消息队列 {{ $labels.queue }} 积压严重"
+          description: "消息队列 {{ $labels.queue }} 中有超过1000条待处理消息，持续5分钟"
+
+      # 缓存命中率告警
+      - alert: LowCacheHitRate
+        expr: rate(cache_hits_total[5m]) / rate(cache_requests_total[5m]) < 0.5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "服务 {{ $labels.instance }} 缓存命中率过低"
+          description: "服务 {{ $labels.instance }} 缓存命中率低于50%，持续15分钟"
+
+      # 数据库连接池告警
+      - alert: HighDBConnections
+        expr: mongodb_connections_current / mongodb_connections_available > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "数据库 {{ $labels.instance }} 连接数过高"
+          description: "数据库 {{ $labels.instance }} 连接使用率超过80%，持续5分钟" 
