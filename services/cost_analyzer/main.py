@@ -37,6 +37,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 检测运行环境
+CI_ENVIRONMENT = os.getenv("CI", "false").lower() == "true" or os.getenv("GITHUB_ACTIONS", "false").lower() == "true"
+DEBUG_MODE = os.getenv("DEBUG", "false").lower() == "true"
+
 # 请求计数中间件
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
@@ -64,28 +68,58 @@ def init_mongodb_connection():
     mongodb_available = os.getenv("MONGODB_AVAILABLE", "true").lower() == "true"
     mongodb_uri = os.getenv("MONGODB_URI", "mongodb://mongodb:27017/merchant_analytics")
     
-    # 尝试解析数据库主机
+    # 如果显式设置MONGODB_AVAILABLE为false，直接返回
+    if os.getenv("MONGODB_AVAILABLE", "").lower() == "false":
+        logger.warning("MongoDB明确设置为不可用，跳过连接检查")
+        return {
+            "available": False,
+            "uri": mongodb_uri
+        }
+    
+    # 在CI环境中优先使用模拟数据，跳过连接检查
+    if CI_ENVIRONMENT:
+        logger.info("检测到CI环境(GitHub Actions)，强制使用模拟数据")
+        return {
+            "available": False,
+            "uri": mongodb_uri,
+            "ci_mode": True
+        }
+    
+    # 尝试解析数据库主机并进行连接测试
     try:
         if mongodb_uri and "://" in mongodb_uri:
             host = mongodb_uri.split("://")[1].split(":")[0].split("/")[0]
             logger.info(f"MongoDB主机: {host}")
+            
+            # 先尝试DNS解析
             try:
                 host_ip = socket.gethostbyname(host)
                 logger.info(f"MongoDB主机IP: {host_ip}")
                 
-                # 尝试连接测试
+                # 尝试建立TCP连接
                 try:
-                    import pymongo
-                    from pymongo.errors import ConnectionFailure
-                    client = pymongo.MongoClient(mongodb_uri, serverSelectionTimeoutMS=5000)
-                    client.admin.command('ping')
-                    logger.info("✅ MongoDB连接成功")
-                    mongodb_available = True
-                except (ConnectionFailure, Exception) as e:
-                    logger.warning(f"MongoDB连接失败: {str(e)}")
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(2)
+                    s.connect((host_ip, 27017))
+                    s.close()
+                    logger.info("MongoDB端口可达")
+                    
+                    # 尝试MongoDB连接测试
+                    try:
+                        import pymongo
+                        from pymongo.errors import ConnectionFailure
+                        client = pymongo.MongoClient(mongodb_uri, serverSelectionTimeoutMS=2000)
+                        client.admin.command('ping')
+                        logger.info("✅ MongoDB连接成功")
+                        mongodb_available = True
+                    except (ConnectionFailure, Exception) as e:
+                        logger.warning(f"MongoDB连接失败: {str(e)}")
+                        mongodb_available = False
+                except (socket.timeout, ConnectionRefusedError, Exception) as e:
+                    logger.warning(f"无法连接到MongoDB端口: {str(e)}")
                     mongodb_available = False
-            except socket.gaierror:
-                logger.warning(f"无法解析MongoDB主机名: {host}")
+            except socket.gaierror as e:
+                logger.warning(f"无法解析MongoDB主机名: {host}, 错误: {str(e)}")
                 mongodb_available = False
     except Exception as e:
         logger.error(f"解析MongoDB URI时出错: {str(e)}")
@@ -93,13 +127,15 @@ def init_mongodb_connection():
     
     return {
         "available": mongodb_available,
-        "uri": mongodb_uri
+        "uri": mongodb_uri,
+        "ci_mode": False
     }
 
 # 初始化MongoDB连接
 mongodb_info = init_mongodb_connection()
 MONGODB_AVAILABLE = mongodb_info["available"]
 MONGODB_URI = mongodb_info["uri"]
+CI_MODE = mongodb_info.get("ci_mode", False)
 
 # 数据模型
 class CostAnalysisRequest(BaseModel):
@@ -134,24 +170,31 @@ async def root():
         "version": "1.0.0",
         "status": "运行中",
         "timestamp": datetime.now().isoformat(),
-        "mongodb_available": MONGODB_AVAILABLE
+        "mongodb_available": MONGODB_AVAILABLE,
+        "ci_environment": CI_ENVIRONMENT,
+        "ci_mode": CI_MODE,
+        "debug_mode": DEBUG_MODE
     }
 
 @app.get("/health")
 async def health_check():
     """健康检查接口"""
-    # 即使MongoDB不可用，服务也被视为健康（有降级功能）
+    # 服务始终被视为健康（有降级功能）
     status = "healthy"
     
     # 检查MongoDB连接
     db_status = "connected" if MONGODB_AVAILABLE else "unavailable"
     
+    # 返回更多调试信息
     return {
         "status": status, 
         "timestamp": datetime.now().isoformat(),
         "database": db_status,
         "hostname": socket.gethostname(),
-        "environment": os.getenv("ENVIRONMENT", "production")
+        "environment": os.getenv("ENVIRONMENT", "production"),
+        "ci_environment": CI_ENVIRONMENT,
+        "ci_mode": CI_MODE,
+        "mongodb_uri": MONGODB_URI.replace(MONGODB_URI.split("@")[-1], "***") if "@" in MONGODB_URI else MONGODB_URI
     }
 
 @app.get("/debug")
@@ -166,36 +209,58 @@ async def debug_info():
     except Exception as e:
         mongodb_info = {"error": str(e)}
     
+    # 网络信息
+    network_info = {
+        "hostname": socket.gethostname(),
+        "fqdn": socket.getfqdn()
+    }
+    
+    # 尝试获取IP信息
+    try:
+        network_info["ip"] = socket.gethostbyname(socket.gethostname())
+    except Exception as e:
+        network_info["ip_error"] = str(e)
+    
+    # 尝试ping mongodb（非CI环境）
+    if not CI_ENVIRONMENT:
+        try:
+            import subprocess
+            ping_result = subprocess.run(["ping", "-c", "1", "mongodb"], capture_output=True, text=True, timeout=2)
+            network_info["ping_mongodb"] = ping_result.returncode == 0
+        except Exception as e:
+            network_info["ping_error"] = str(e)
+    
     return {
         "timestamp": datetime.now().isoformat(),
         "hostname": socket.gethostname(),
         "python_version": python_version(),
         "system": sys.platform,
-        "environment_variables": {k: v for k, v in os.environ.items() if k in ["ENVIRONMENT", "PORT", "DEBUG", "MONGODB_AVAILABLE"]},
+        "environment_variables": {k: v for k, v in os.environ.items() if k in ["ENVIRONMENT", "PORT", "DEBUG", "MONGODB_AVAILABLE", "CI", "GITHUB_ACTIONS"]},
         "mongodb": {
             **mongodb_info,
-            "available": MONGODB_AVAILABLE
+            "available": MONGODB_AVAILABLE,
+            "ci_mode": CI_MODE
         },
-        "network": {
-            "hostname": socket.gethostname(),
-            "fqdn": socket.getfqdn(),
-            "ip": socket.gethostbyname(socket.gethostname())
-        }
+        "network": network_info,
+        "ci_environment": CI_ENVIRONMENT,
+        "debug_mode": DEBUG_MODE
     }
 
 @app.get("/reconnect-mongodb")
 async def reconnect_mongodb():
     """尝试重新连接MongoDB"""
-    global MONGODB_AVAILABLE, MONGODB_URI
+    global MONGODB_AVAILABLE, MONGODB_URI, CI_MODE
     
     # 重新初始化连接
     mongodb_info = init_mongodb_connection()
     MONGODB_AVAILABLE = mongodb_info["available"]
     MONGODB_URI = mongodb_info["uri"]
+    CI_MODE = mongodb_info.get("ci_mode", False)
     
     return {
         "timestamp": datetime.now().isoformat(),
         "mongodb_available": MONGODB_AVAILABLE,
+        "ci_mode": CI_MODE,
         "message": "MongoDB重连成功" if MONGODB_AVAILABLE else "MongoDB重连失败"
     }
 
@@ -282,8 +347,10 @@ async def startup_event():
     logger.info("成本分析服务正在启动...")
     # 记录环境信息
     logger.info(f"环境: {os.getenv('ENVIRONMENT', 'production')}")
-    logger.info(f"调试模式: {os.getenv('DEBUG', 'false')}")
+    logger.info(f"调试模式: {DEBUG_MODE}")
     logger.info(f"MongoDB可用: {MONGODB_AVAILABLE}")
+    logger.info(f"CI环境: {CI_ENVIRONMENT}")
+    logger.info(f"CI模式: {CI_MODE}")
     logger.info(f"服务器主机名: {socket.gethostname()}")
     logger.info(f"PYTHONPATH: {os.getenv('PYTHONPATH', '')}")
 

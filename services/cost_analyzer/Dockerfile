@@ -1,6 +1,18 @@
 # 使用多阶段构建 - 构建阶段
 FROM python:3.9-slim as builder
 
+# 构建参数 - CI环境变量
+ARG CI=false
+ARG GITHUB_ACTIONS=false
+ARG MONGODB_AVAILABLE=true
+ARG DEBUG=false
+
+# 环境变量设置
+ENV CI=$CI
+ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
+ENV MONGODB_AVAILABLE=$MONGODB_AVAILABLE
+ENV DEBUG=$DEBUG
+
 # 设置工作目录
 WORKDIR /app
 
@@ -13,11 +25,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 复制依赖文件
 COPY services/cost_analyzer/requirements.txt .
 
+# 清理可能存在的非法字符
+RUN sed -i 's/[^a-zA-Z0-9>=<._\n\r -]//g' requirements.txt
+
 # 安装依赖到用户目录
 RUN pip install --user --no-cache-dir -r requirements.txt
 
 # 最终镜像阶段
 FROM python:3.9-slim
+
+# 构建参数 - CI环境变量（确保在最终镜像中也设置）
+ARG CI=false
+ARG GITHUB_ACTIONS=false
+ARG MONGODB_AVAILABLE=true 
+ARG DEBUG=false
+
+# 环境变量设置
+ENV CI=$CI \
+    GITHUB_ACTIONS=$GITHUB_ACTIONS \
+    MONGODB_AVAILABLE=$MONGODB_AVAILABLE \
+    DEBUG=$DEBUG \
+    PATH=/root/.local/bin:$PATH \
+    PYTHONPATH=/app \
+    PORT=8001 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive
 
 # 设置工作目录
 WORKDIR /app
@@ -32,14 +64,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iputils-ping \
     dnsutils \
     procps \
+    jq \
     && rm -rf /var/lib/apt/lists/*
-
-# 设置环境变量
-ENV PATH=/root/.local/bin:$PATH
-ENV PYTHONPATH=/app
-ENV PORT=8001
-ENV PYTHONUNBUFFERED=1
-ENV DEBIAN_FRONTEND=noninteractive
 
 # 安装调试工具 
 RUN pip install httpie
@@ -51,7 +77,7 @@ COPY services/cost_analyzer /app/
 RUN chmod +x /app/entrypoint.sh
 
 # 创建调试脚本
-RUN echo '#!/bin/bash\necho "检查网络连接:"\nping -c 3 mongodb || echo "无法ping通mongodb"\nping -c 3 host.docker.internal || echo "无法ping通host.docker.internal"\nping -c 3 localhost || echo "无法ping通localhost"\necho "DNS查询:"\nnslookup mongodb || echo "无法解析mongodb"\necho "端口扫描:"\nnc -zv mongodb 27017 || echo "无法连接到mongodb:27017"\nnc -zv host.docker.internal 27017 || echo "无法连接到host.docker.internal:27017"\necho "内部Web服务测试:"\ncurl -v http://localhost:8001/health || echo "健康检查失败"' > /app/debug.sh && chmod +x /app/debug.sh
+RUN echo '#!/bin/bash\necho "检查环境变量:"\nenv | grep -E "CI|GITHUB|MONGO|DEBUG"\necho "检查网络连接:"\nping -c 3 mongodb || echo "无法ping通mongodb"\nping -c 3 host.docker.internal || echo "无法ping通host.docker.internal"\nping -c 3 localhost || echo "无法ping通localhost"\necho "DNS查询:"\nnslookup mongodb || echo "无法解析mongodb"\necho "端口扫描:"\nnc -zv mongodb 27017 || echo "无法连接到mongodb:27017"\nnc -zv host.docker.internal 27017 || echo "无法连接到host.docker.internal:27017"\necho "内部Web服务测试:"\ncurl -v http://localhost:8001/health || echo "健康检查失败"\necho "系统信息:"\ncat /etc/hosts\nps aux | grep python' > /app/debug.sh && chmod +x /app/debug.sh
 
 # 暴露端口
 EXPOSE 8001
