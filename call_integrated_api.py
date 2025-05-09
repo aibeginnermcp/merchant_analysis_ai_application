@@ -4,7 +4,7 @@ from datetime import datetime
 
 # 模拟模式配置
 MOCK_MODE = True
-BASE_URL = "http://localhost:8080"
+BASE_URL = "https://localhost:8080"
 
 def load_token():
     """从文件加载访问令牌"""
