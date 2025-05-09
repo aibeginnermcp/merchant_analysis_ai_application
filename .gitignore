@@ -41,6 +41,10 @@ Thumbs.db
 access_token.json
 integrated_analysis_response_*.json
 *.log
+github token.txt
+*token*.txt
+*TOKEN*.txt
+*.token
 
 # 编辑器/IDE
 .idea/
@@ -63,4 +67,9 @@ logs/
 # 临时文件
 tmp/
 temp/
-.temp/ 
+.temp/
+
+# 测试覆盖率
+.coverage
+coverage.xml
+htmlcov/ 

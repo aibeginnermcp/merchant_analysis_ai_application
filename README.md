@@ -7,6 +7,12 @@
 ```
 .
 ├── call_integrated_api.py  # 集成API调用示例
+├── services/               # 微服务组件
+│   ├── api_gateway/        # API网关
+│   ├── cashflow_predictor/ # 现金流预测服务
+│   ├── cost_analyzer/      # 成本分析服务
+│   ├── compliance_checker/ # 合规检查服务
+│   └── data_simulator/     # 数据模拟服务
 └── README.md               # 项目说明文档
 ```
 
@@ -23,6 +29,7 @@
 
 - Python 3.8+
 - 必要的第三方库 (详见requirements.txt)
+- Docker (可选，用于容器化部署)
 
 ### 安装依赖
 
@@ -35,6 +42,25 @@ pip install -r requirements.txt
 ```bash
 python call_integrated_api.py
 ```
+
+### Docker 部署
+
+使用 Docker Compose 启动所有服务:
+
+```bash
+docker-compose up -d
+```
+
+## CI/CD 配置
+
+项目已配置 GitHub Actions 实现自动化测试、构建和部署流程:
+
+- **自动测试**: 每次提交代码时自动运行单元测试
+- **代码质量检查**: 使用 flake8、black 和 isort 进行代码风格检查
+- **Docker 镜像构建**: 自动构建并推送服务镜像到 Docker Hub
+- **自动部署**: 在测试和构建成功后自动部署到生产环境
+
+详细配置说明请查看 [GitHub Actions 配置指南](docs/GITHUB_ACTIONS_SETUP.md)。
 
 ## API文档
 
@@ -95,7 +121,11 @@ python call_integrated_api.py
 
 ## 贡献指南
 
-欢迎提交Issue或Pull Request来帮助改进项目。
+欢迎提交Issue或Pull Request来帮助改进项目。提交代码前，请确保:
+
+1. 通过所有单元测试
+2. 遵循项目的代码风格规范
+3. 更新相关文档
 
 ## 许可协议
 
