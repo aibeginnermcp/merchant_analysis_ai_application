@@ -17,7 +17,7 @@ services:
       - COST_ANALYZER_URL=http://cost_analyzer:8001
       - COMPLIANCE_CHECKER_URL=http://compliance_checker:8003
       - DEBUG=false
-      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_URI=mongodb://mongodb:27017/merchant_analytics
       - REDIS_URL=redis://redis:6379
     depends_on:
       - data_simulator
@@ -28,6 +28,12 @@ services:
       - redis
     networks:
       - merchant_analysis_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # 数据模拟服务
   data_simulator:
@@ -37,12 +43,21 @@ services:
     container_name: data_simulator
     restart: unless-stopped
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_URI=mongodb://mongodb:27017/merchant_analytics
       - DEBUG=false
+      - INIT_DEMO_DATA=true
+      - ENVIRONMENT=production
+      - WORKERS=2
     depends_on:
       - mongodb
     networks:
       - merchant_analysis_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # 现金流预测服务
   cashflow_predictor:
@@ -52,13 +67,21 @@ services:
     container_name: cashflow_predictor
     restart: unless-stopped
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_URI=mongodb://mongodb:27017/merchant_analytics
       - DEBUG=false
+      - ENVIRONMENT=production
+      - WORKERS=2
     depends_on:
       - mongodb
       - data_simulator
     networks:
       - merchant_analysis_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # 成本分析服务
   cost_analyzer:
@@ -68,13 +91,21 @@ services:
     container_name: cost_analyzer
     restart: unless-stopped
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_URI=mongodb://mongodb:27017/merchant_analytics
       - DEBUG=false
+      - ENVIRONMENT=production
+      - WORKERS=2
     depends_on:
       - mongodb
       - data_simulator
     networks:
       - merchant_analysis_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # 合规检查服务
   compliance_checker:
@@ -84,33 +115,61 @@ services:
     container_name: compliance_checker
     restart: unless-stopped
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_URI=mongodb://mongodb:27017/merchant_analytics
       - DEBUG=false
+      - ENVIRONMENT=production
+      - WORKERS=2
     depends_on:
       - mongodb
       - data_simulator
     networks:
       - merchant_analysis_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # MongoDB数据库
   mongodb:
     image: mongo:5.0
     container_name: mongodb
     restart: unless-stopped
+    ports:
+      - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+      - ./config/mongodb:/docker-entrypoint-initdb.d
+    environment:
+      - MONGO_INITDB_DATABASE=merchant_analytics
     networks:
       - merchant_analysis_network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/merchant_analytics --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   # Redis缓存
   redis:
     image: redis:6.2-alpine
     container_name: redis
     restart: unless-stopped
+    ports:
+      - "6379:6379"
     volumes:
       - redis_data:/data
+    command: redis-server --appendonly yes
     networks:
       - merchant_analysis_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # Prometheus监控
   prometheus:
@@ -129,6 +188,12 @@ services:
       - "9090:9090"
     networks:
       - merchant_analysis_network
+    depends_on:
+      - api_gateway
+      - data_simulator
+      - cashflow_predictor
+      - cost_analyzer
+      - compliance_checker
 
   # Grafana仪表盘
   grafana:

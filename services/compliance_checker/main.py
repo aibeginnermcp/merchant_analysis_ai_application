@@ -1,276 +1,175 @@
 """
-智能财务哨兵系统
-主程序入口
+合规检查服务主入口文件
+提供合规检查相关API
 """
-
+from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from datetime import datetime, date
+from typing import List, Dict, Optional, Any
 import logging
-from pathlib import Path
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
-import pandas as pd
-import numpy as np
+import os
+import json
+import time
+import uuid
 
-from rule_engine.rule_loader import RuleLoader
-from rule_engine.evidence_tracer import EvidenceTracer
-from compliance_checker import ComplianceChecker
-from report_generator.report_generator import ReportGenerator
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-class FinancialSentinel:
-    """智能财务哨兵系统"""
+# 创建FastAPI应用
+app = FastAPI(
+    title="合规检查服务",
+    description="自动检查商户经营中的合规风险点",
+    version="1.0.0"
+)
+
+# 添加CORS中间件
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 生产环境中应限制为特定域名
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 请求计数中间件
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    logger.info(f"请求处理时间: {process_time:.4f}秒 - 路径: {request.url.path}")
+    return response
+
+# 数据模型
+class ComplianceCheckRequest(BaseModel):
+    merchant_id: str = Field(..., description="商户ID")
+    start_date: date = Field(..., description="检查开始日期")
+    end_date: date = Field(..., description="检查结束日期")
+    check_types: List[str] = Field(
+        default=["tax", "accounting", "licensing", "labor"],
+        description="检查类型列表"
+    )
+
+class ComplianceStatus(BaseModel):
+    tax: str = Field(..., description="税务合规状态")
+    accounting: str = Field(..., description="会计合规状态")
+    licensing: str = Field(..., description="许可证合规状态")
+    labor: str = Field(..., description="劳工合规状态")
+
+class ComplianceCheckResponse(BaseModel):
+    request_id: str = Field(..., description="请求ID")
+    merchant_id: str = Field(..., description="商户ID")
+    overall_status: str = Field(..., description="整体合规状态")
+    type_status: ComplianceStatus = Field(..., description="各类型合规状态")
+    risk_score: float = Field(..., description="风险评分")
+    issues: List[Dict[str, Any]] = Field(..., description="合规问题")
+    recommendations: List[str] = Field(..., description="改进建议")
+
+@app.get("/")
+async def root():
+    """服务根路径，返回简单信息"""
+    return {
+        "name": "合规检查服务",
+        "version": "1.0.0",
+        "status": "运行中",
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/health")
+async def health_check():
+    """健康检查接口"""
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+@app.post("/api/v1/check", response_model=ComplianceCheckResponse)
+async def check_compliance(request: ComplianceCheckRequest):
+    """
+    检查合规状况
     
-    def __init__(self):
-        """初始化系统"""
-        # 创建必要的目录
-        self._create_directories()
+    此API检查商户的各项合规状况，包括税务、会计、许可证和劳工合规
+    """
+    try:
+        logger.info(f"接收到合规检查请求: {request}")
+        request_id = f"req_comp_{str(uuid.uuid4())[:8]}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
         
-        # 初始化日志
-        self.logger = self._setup_logger()
+        # 验证日期范围
+        if request.end_date < request.start_date:
+            raise HTTPException(status_code=400, detail="结束日期不能早于开始日期")
         
-        # 初始化组件
-        self.rule_loader = RuleLoader()
-        self.evidence_tracer = EvidenceTracer()
-        self.compliance_checker = ComplianceChecker()
-        self.report_generator = ReportGenerator()
+        # 验证检查类型
+        valid_types = ["tax", "accounting", "licensing", "labor"]
+        for check_type in request.check_types:
+            if check_type not in valid_types:
+                raise HTTPException(status_code=400, detail=f"无效的检查类型: {check_type}")
         
-        # 加载规则
-        self.rules = self.rule_loader.load_rules()
+        # 模拟合规检查结果
+        overall_status = "needs_review"
         
-        self.logger.info("智能财务哨兵系统初始化完成")
-    
-    def _create_directories(self) -> None:
-        """创建必要的目录"""
-        directories = [
-            'logs',
-            'output',
-            'audit_rules',
-            'audit_evidence',
-            'reports'
-        ]
-        
-        for directory in directories:
-            Path(directory).mkdir(parents=True, exist_ok=True)
-    
-    def _setup_logger(self) -> logging.Logger:
-        """设置日志记录器"""
-        logger = logging.getLogger("FinancialSentinel")
-        logger.setLevel(logging.INFO)
-        
-        # 创建控制台处理器
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        
-        # 创建文件处理器
-        file_handler = logging.FileHandler("logs/financial_sentinel.log")
-        file_handler.setLevel(logging.INFO)
-        
-        # 创建格式化器
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        # 模拟各类型状态
+        type_status = ComplianceStatus(
+            tax="compliant",
+            accounting="needs_review",
+            licensing="non_compliant",
+            labor="compliant"
         )
-        console_handler.setFormatter(formatter)
-        file_handler.setFormatter(formatter)
         
-        # 添加处理器到日志记录器
-        logger.addHandler(console_handler)
-        logger.addHandler(file_handler)
+        # 模拟风险评分 (0-100，越高风险越大)
+        risk_score = 42.5
         
-        return logger
-    
-    def run_compliance_check(
-        self,
-        data: Dict[str, pd.DataFrame],
-        check_types: Optional[List[str]] = None
-    ) -> Dict:
-        """
-        执行合规检查
-        
-        Args:
-            data: 待检查的数据
-            check_types: 要执行的检查类型列表，为None时执行所有检查
-            
-        Returns:
-            Dict: 检查结果
-        """
-        try:
-            self.logger.info("开始执行合规检查")
-            
-            # 执行合规检查
-            results = self.compliance_checker.check_compliance(data)
-            
-            # 获取历史数据
-            historical_data = self._get_historical_data()
-            
-            # 获取部门维度数据
-            department_data = self._get_department_data(results)
-            
-            # 生成报告
-            report_file = self.report_generator.generate_report(
-                results,
-                historical_data,
-                department_data
-            )
-            
-            # 记录检查结果
-            self._record_check_results(results)
-            
-            self.logger.info(f"合规检查完成，报告已生成: {report_file}")
-            return results
-            
-        except Exception as e:
-            self.logger.error(f"执行合规检查时发生错误: {str(e)}")
-            raise
-    
-    def _get_historical_data(self) -> List[Dict]:
-        """获取历史检查数据"""
-        # 这里应该从数据库或其他存储中获取历史数据
-        # 示例数据
-        return [
+        # 模拟合规问题
+        issues = [
             {
-                'date': datetime.now() - timedelta(days=i),
-                'high_risk_count': np.random.randint(0, 5),
-                'medium_risk_count': np.random.randint(3, 8),
-                'low_risk_count': np.random.randint(5, 15)
+                "area": "licensing",
+                "severity": "high",
+                "description": "营业执照即将过期",
+                "deadline": "2023-06-30"
+            },
+            {
+                "area": "accounting",
+                "severity": "medium",
+                "description": "账目记录不完整",
+                "details": "3月份缺少部分交易记录"
             }
-            for i in range(30)
         ]
         
-    def _get_department_data(self, results: Dict) -> Dict:
-        """获取部门维度的统计数据"""
-        department_stats = {}
+        # 模拟建议
+        recommendations = [
+            "尽快更新营业执照，避免过期带来的罚款和业务中断",
+            "完善3月份的账目记录，确保财务报表准确性",
+            "考虑聘请专业会计服务，规范财务流程"
+        ]
         
-        # 统计各部门的问题数量
-        for severity, issues in results.items():
-            for issue in issues:
-                dept = issue.get('department', '未知部门')
-                if dept not in department_stats:
-                    department_stats[dept] = {
-                        'high': 0,
-                        'medium': 0,
-                        'low': 0
-                    }
-                department_stats[dept][severity] += 1
-                
-        return department_stats
+        # 记录检查完成
+        logger.info(f"合规检查完成，请求ID: {request_id}")
+        
+        # 返回检查结果
+        return ComplianceCheckResponse(
+            request_id=request_id,
+            merchant_id=request.merchant_id,
+            overall_status=overall_status,
+            type_status=type_status,
+            risk_score=risk_score,
+            issues=issues,
+            recommendations=recommendations
+        )
     
-    def _record_check_results(self, results: Dict) -> None:
-        """
-        记录检查结果
-        
-        Args:
-            results: 检查结果
-        """
-        try:
-            # 遍历所有问题
-            for issue_type, issues in results.items():
-                for issue in issues:
-                    # 创建证据
-                    evidence = self.evidence_tracer.create_evidence(
-                        evidence_type=issue['type'],
-                        source="合规检查系统",
-                        content=issue,
-                        related_rule=issue.get('rule_id', 'unknown'),
-                        metadata={
-                            'severity': issue['severity'],
-                            'check_time': datetime.now().isoformat()
-                        }
-                    )
-                    
-                    # 如果是高风险问题，创建证据链
-                    if issue['severity'] in ['high', 'critical']:
-                        self.evidence_tracer.create_evidence_chain(
-                            evidences=[evidence],
-                            conclusion=issue.get('description', '发现高风险合规问题'),
-                            risk_level=issue['severity'],
-                            reviewer="系统自动检查"
-                        )
-            
-        except Exception as e:
-            self.logger.error(f"记录检查结果时发生错误: {str(e)}")
-            raise
-    
-    def get_rule_statistics(self) -> Dict[str, int]:
-        """
-        获取规则统计信息
-        
-        Returns:
-            Dict[str, int]: 规则统计信息
-        """
-        stats = {
-            'total_rules': 0,
-            'high_severity': 0,
-            'medium_severity': 0,
-            'low_severity': 0
-        }
-        
-        # 统计规则数量
-        for rule_file in self.rules.values():
-            for rule_group in rule_file.values():
-                stats['total_rules'] += len(rule_group)
-                for rule in rule_group.values():
-                    severity = rule['severity'].lower()
-                    if severity in ['high', 'critical']:
-                        stats['high_severity'] += 1
-                    elif severity == 'medium':
-                        stats['medium_severity'] += 1
-                    else:
-                        stats['low_severity'] += 1
-        
-        return stats
-    
-    def get_evidence_statistics(self) -> Dict[str, int]:
-        """
-        获取证据统计信息
-        
-        Returns:
-            Dict[str, int]: 证据统计信息
-        """
-        stats = {
-            'total_evidences': 0,
-            'total_chains': 0,
-            'high_risk_evidences': 0
-        }
-        
-        # 统计证据数量
-        evidence_files = list(Path('audit_evidence').glob('E*.json'))
-        chain_files = list(Path('audit_evidence').glob('C*.json'))
-        
-        stats['total_evidences'] = len(evidence_files)
-        stats['total_chains'] = len(chain_files)
-        
-        # 统计高风险证据
-        high_risk = self.evidence_tracer.search_evidence({
-            'metadata.severity': 'high'
-        })
-        stats['high_risk_evidences'] = len(high_risk)
-        
-        return stats
+    except HTTPException:
+        # 重新抛出HTTP异常
+        raise
+    except Exception as e:
+        logger.error(f"检查合规时发生错误: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")
 
 if __name__ == "__main__":
-    # 初始化系统
-    sentinel = FinancialSentinel()
+    import uvicorn
+    # 从环境变量获取端口，默认为8003
+    port = int(os.getenv("PORT", 8003))
     
-    # 打印系统状态
-    rule_stats = sentinel.get_rule_statistics()
-    print("\n规则统计信息:")
-    print(f"总规则数: {rule_stats['total_rules']}")
-    print(f"高风险规则: {rule_stats['high_severity']}")
-    print(f"中风险规则: {rule_stats['medium_severity']}")
-    print(f"低风险规则: {rule_stats['low_severity']}")
-    
-    # 加载测试数据
-    from test_compliance_data import ComplianceTestDataGenerator
-    test_data = ComplianceTestDataGenerator().generate_test_data(1000)
-    
-    # 执行合规检查
-    results = sentinel.run_compliance_check(test_data)
-    
-    # 打印检查结果统计
-    total_issues = sum(len(issues) for issues in results.values())
-    print(f"\n检查完成，共发现 {total_issues} 个问题")
-    
-    # 打印证据统计
-    evidence_stats = sentinel.get_evidence_statistics()
-    print("\n证据统计信息:")
-    print(f"总证据数: {evidence_stats['total_evidences']}")
-    print(f"证据链数: {evidence_stats['total_chains']}")
-    print(f"高风险证据: {evidence_stats['high_risk_evidences']}") 
+    # 配置服务器并启动
+    logger.info(f"合规检查服务正在启动，端口: {port}...")
+    uvicorn.run(app, host="0.0.0.0", port=port) 

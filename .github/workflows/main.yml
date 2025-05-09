@@ -74,21 +74,36 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     
-    - name: Verify Docker files
+    - name: Verify Docker files and service structure
       run: |
-        echo "检查Docker文件是否存在..."
-        ls -la ./services/api_gateway/
-        ls -la ./services/cashflow_predictor/
-        ls -la ./services/cost_analyzer/
-        ls -la ./services/compliance_checker/
-        ls -la ./services/data_simulator/
-        
-        echo "验证Dockerfile内容..."
-        cat ./services/api_gateway/Dockerfile
-        cat ./services/cashflow_predictor/Dockerfile
-        cat ./services/cost_analyzer/Dockerfile
-        cat ./services/compliance_checker/Dockerfile
-        cat ./services/data_simulator/Dockerfile
+        echo "检查Docker文件和入口脚本是否存在..."
+        for service in "api_gateway" "cashflow_predictor" "cost_analyzer" "compliance_checker" "data_simulator"; do
+          echo "检查服务: $service"
+          if [ -f "./services/$service/Dockerfile" ]; then
+            echo "✅ Dockerfile 已找到"
+          else
+            echo "❌ Dockerfile 未找到"
+          fi
+          
+          if [ -f "./services/$service/entrypoint.sh" ]; then
+            echo "✅ entrypoint.sh 已找到"
+          else
+            echo "⚠️ entrypoint.sh 未找到 (可能使用其他启动方式)"
+          fi
+          
+          if [ -f "./services/$service/main.py" ]; then
+            echo "✅ main.py 已找到"
+          else
+            echo "⚠️ main.py 未找到 (可能使用其他入口文件)"
+          fi
+          
+          if [ -f "./services/$service/requirements.txt" ]; then
+            echo "✅ requirements.txt 已找到"
+          else
+            echo "❌ requirements.txt 未找到"
+          fi
+          echo "-----------------------"
+        done
 
   build_gateway:
     needs: [verify_docker_files]
@@ -122,17 +137,20 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     
     - name: Build and test API Gateway
+      id: local_build
       run: |
-        echo "仅构建API网关，不推送..."
-        cd ./services/api_gateway
-        docker build -t merchant-api-gateway:local .
+        echo "在本地构建API网关进行测试..."
+        docker build -t merchant-api-gateway:local -f ./services/api_gateway/Dockerfile .
+        echo "✅ 本地构建成功"
+        echo "::set-output name=build_status::success"
 
     - name: Push API Gateway (if credentials exist)
-      if: steps.check_creds.outputs.creds_exist == 'true'
+      if: steps.check_creds.outputs.creds_exist == 'true' && steps.local_build.outputs.build_status == 'success'
       continue-on-error: true
       uses: docker/build-push-action@v2
       with:
-        context: ./services/api_gateway
+        context: .
+        file: ./services/api_gateway/Dockerfile
         push: true
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/merchant-api-gateway:latest
@@ -153,13 +171,13 @@ jobs:
         service: [cashflow_predictor, cost_analyzer, compliance_checker, data_simulator]
         include:
           - service: cashflow_predictor
-            context: ./services/cashflow_predictor
+            dockerfile: ./services/cashflow_predictor/Dockerfile
           - service: cost_analyzer
-            context: ./services/cost_analyzer  
+            dockerfile: ./services/cost_analyzer/Dockerfile
           - service: compliance_checker
-            context: ./services/compliance_checker
+            dockerfile: ./services/compliance_checker/Dockerfile
           - service: data_simulator
-            context: ./services/data_simulator
+            dockerfile: ./services/data_simulator/Dockerfile
     
     steps:
     - uses: actions/checkout@v2
@@ -186,17 +204,20 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     
     - name: Build and test ${{ matrix.service }}
+      id: local_build
       run: |
-        echo "仅构建 ${{ matrix.service }}，不推送..."
-        cd ${{ matrix.context }}
-        docker build -t merchant-${{ matrix.service }}:local .
+        echo "在本地构建 ${{ matrix.service }} 进行测试..."
+        docker build -t merchant-${{ matrix.service }}:local -f ${{ matrix.dockerfile }} .
+        echo "✅ 本地构建成功"
+        echo "::set-output name=build_status::success"
 
     - name: Push ${{ matrix.service }} (if credentials exist)
-      if: steps.check_creds.outputs.creds_exist == 'true'
+      if: steps.check_creds.outputs.creds_exist == 'true' && steps.local_build.outputs.build_status == 'success'
       continue-on-error: true
       uses: docker/build-push-action@v2
       with:
-        context: ${{ matrix.context }}
+        context: .
+        file: ${{ matrix.dockerfile }}
         push: true
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/merchant-${{ matrix.service }}:latest

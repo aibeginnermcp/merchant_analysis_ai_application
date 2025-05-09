@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件
-COPY requirements.txt .
+COPY services/cost_analyzer/requirements.txt .
 
 # 安装依赖到用户目录
 RUN pip install --user --no-cache-dir -r requirements.txt
@@ -25,13 +25,21 @@ WORKDIR /app
 # 复制构建阶段安装的依赖
 COPY --from=builder /root/.local /root/.local
 
+# 安装运行时依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # 设置环境变量
 ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONPATH=/app
 ENV PORT=8001
 
 # 复制应用代码
-COPY . .
+COPY services/cost_analyzer /app/
+
+# 确保入口脚本有执行权限
+RUN chmod +x /app/entrypoint.sh
 
 # 暴露端口
 EXPOSE 8001
@@ -41,4 +49,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8001/health || exit 1
 
 # 启动命令
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+ENTRYPOINT ["/app/entrypoint.sh"]
