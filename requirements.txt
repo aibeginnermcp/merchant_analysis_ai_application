@@ -6,7 +6,8 @@ motor==3.1.2
 pymongo>=4.3.3
 httpx>=0.24.0
 python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
+passlib>=1.7.4
+bcrypt
 sqlalchemy>=2.0.0
 redis>=4.5.4
 prometheus-client>=0.16.0
