@@ -19,24 +19,24 @@ logger = logging.getLogger(__name__)
 
 # 尝试导入shared模块，如果不存在则使用备用实现
 try:
-    from shared.discovery import discovery
-    from shared.middleware import (
-        create_middleware_stack,
-        TracingMiddleware,
-        ResponseMiddleware
-    )
-    from shared.models import (
-        BaseResponse,
-        AnalysisRequest,
-        AnalysisResponse,
-        AnalysisType,
-        AnalysisStatus
-    )
-    from shared.exceptions import (
-        ValidationError,
-        BusinessError,
-        ServiceType
-    )
+from shared.discovery import discovery
+from shared.middleware import (
+    create_middleware_stack,
+    TracingMiddleware,
+    ResponseMiddleware
+)
+from shared.models import (
+    BaseResponse,
+    AnalysisRequest,
+    AnalysisResponse,
+    AnalysisType,
+    AnalysisStatus
+)
+from shared.exceptions import (
+    ValidationError,
+    BusinessError,
+    ServiceType
+)
     SHARED_AVAILABLE = True
 except ImportError:
     logger.warning("共享模块不可用，使用本地实现")
@@ -110,7 +110,7 @@ async def lifespan(app: FastAPI):
     discovery.service_port = SERVICE_PORT
     
     try:
-        discovery.register()
+    discovery.register()
         logger.info("服务注册成功")
     except Exception as e:
         logger.error(f"服务注册失败: {str(e)}")
@@ -118,7 +118,7 @@ async def lifespan(app: FastAPI):
     yield
     
     try:
-        discovery.deregister()
+    discovery.deregister()
         logger.info("服务注销成功")
     except Exception as e:
         logger.error(f"服务注销失败: {str(e)}")
@@ -148,10 +148,10 @@ async def log_requests(request: Request, call_next):
 
 # 添加共享中间件（如果可用）
 if SHARED_AVAILABLE:
-    for middleware in create_middleware_stack(app):
-        app.add_middleware(middleware.__class__)
-    app.add_middleware(TracingMiddleware)
-    app.add_middleware(ResponseMiddleware)
+for middleware in create_middleware_stack(app):
+    app.add_middleware(middleware.__class__)
+app.add_middleware(TracingMiddleware)
+app.add_middleware(ResponseMiddleware)
 
 @app.get("/health")
 async def health_check() -> BaseResponse:

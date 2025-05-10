@@ -78,7 +78,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail}
-    )
+        )
 
 # 初始化MongoDB连接参数
 def init_mongodb_connection():
@@ -412,7 +412,7 @@ async def analyze_cost(request: CostAnalysisRequest):
         
         logger.info(f"成本分析完成: 商户={request.merchant_id}, 总成本={result['total_cost']}, 优化建议数={len(result['optimization_suggestions'])}")
         return result
-        
+    
     except HTTPException:
         # 直接抛出HTTP异常
         raise

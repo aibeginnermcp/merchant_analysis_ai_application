@@ -1,0 +1,106 @@
+{
+  "metadata": {
+    "generated_at": "2025-05-09 13:28:15",
+    "data_period": "2023-01-01 至 2023-03-31",
+    "data_source": "智能商户经营分析平台数据模拟器",
+    "version": "1.0.0"
+  },
+  "industries": {
+    "restaurant": {
+      "users": 5000,
+      "transactions": 12500,
+      "menu_items": 45,
+      "average_order": 125.8,
+      "peak_hours": [
+        "11:30-13:30",
+        "18:00-20:30"
+      ],
+      "popular_dishes": [
+        "红烧肉",
+        "鱼香肉丝",
+        "宫保鸡丁"
+      ],
+      "customer_distribution": {
+        "18-25岁": 0.15,
+        "26-35岁": 0.4,
+        "36-45岁": 0.25,
+        "46-60岁": 0.15,
+        "60岁以上": 0.05
+      },
+      "cost_breakdown": {
+        "labor": 0.35,
+        "raw_material": 0.4,
+        "rent": 0.15,
+        "utilities": 0.05,
+        "marketing": 0.05
+      }
+    },
+    "ecommerce": {
+      "users": 8200,
+      "products": 1200,
+      "orders": 25000,
+      "average_order": 210.5,
+      "return_rate": 0.18,
+      "popular_categories": [
+        "服装",
+        "电子产品",
+        "家居用品"
+      ],
+      "traffic_sources": {
+        "搜索引擎": 0.45,
+        "社交媒体": 0.3,
+        "直接访问": 0.15,
+        "邮件营销": 0.1
+      },
+      "cost_breakdown": {
+        "product_cost": 0.65,
+        "logistics": 0.15,
+        "platform": 0.1,
+        "marketing": 0.08,
+        "customer_service": 0.02
+      }
+    },
+    "retail": {
+      "users": 7500,
+      "products": 3500,
+      "transactions": 18000,
+      "average_basket": 158.75,
+      "store_locations": 5,
+      "popular_times": [
+        "周末",
+        "节假日"
+      ],
+      "payment_methods": {
+        "支付宝": 0.35,
+        "微信支付": 0.4,
+        "银行卡": 0.2,
+        "现金": 0.05
+      },
+      "cost_breakdown": {
+        "inventory": 0.6,
+        "labor": 0.2,
+        "rent": 0.12,
+        "utilities": 0.04,
+        "marketing": 0.04
+      }
+    },
+    "service": {
+      "users": 4200,
+      "appointments": 9800,
+      "services": 55,
+      "average_cost": 320.0,
+      "booking_channels": {
+        "在线": 0.65,
+        "电话": 0.25,
+        "现场": 0.1
+      },
+      "cost_breakdown": {
+        "labor": 0.55,
+        "rent": 0.2,
+        "equipment": 0.15,
+        "marketing": 0.05,
+        "utilities": 0.05
+      }
+    }
+  }
+}

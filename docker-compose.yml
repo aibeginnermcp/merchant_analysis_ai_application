@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # API网关服务
   api_gateway:
