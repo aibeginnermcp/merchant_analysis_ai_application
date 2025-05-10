@@ -4,15 +4,18 @@
 """
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from datetime import datetime, date
-from typing import List, Dict, Optional, Any
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, validator
+from datetime import datetime, date, timedelta
+from typing import List, Dict, Optional, Any, Union
 import logging
 import os
 import json
 import time
 import uuid
 import socket
+import random
+from pathlib import Path
 
 # 配置日志
 logging.basicConfig(
@@ -55,12 +58,27 @@ async def add_process_time_header(request: Request, call_next):
         logger.error(f"请求处理异常: {str(e)}")
         process_time = time.time() - start_time
         # 返回一个错误响应
-        from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=500,
             content={"detail": "服务器内部错误，请稍后再试"},
             headers={"X-Process-Time": str(process_time)}
         )
+
+# 自定义异常处理
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"全局异常处理: {str(exc)}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"服务器内部错误: {str(exc)}"}
+    )
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
 
 # 初始化MongoDB连接参数
 def init_mongodb_connection():
@@ -143,6 +161,20 @@ class CostAnalysisRequest(BaseModel):
     start_date: date = Field(..., description="分析开始日期")
     end_date: date = Field(..., description="分析结束日期")
     analysis_depth: str = Field("detailed", description="分析深度: basic, detailed, comprehensive")
+    
+    # 添加验证
+    @validator('end_date')
+    def end_date_must_be_after_start_date(cls, v, values):
+        if 'start_date' in values and v < values['start_date']:
+            raise ValueError('结束日期不能早于开始日期')
+        return v
+    
+    @validator('analysis_depth')
+    def validate_analysis_depth(cls, v):
+        valid_depths = ['basic', 'detailed', 'comprehensive']
+        if v.lower() not in valid_depths:
+            raise ValueError('无效的分析深度参数')
+        return v.lower()
 
 class CostCategory(BaseModel):
     category: str = Field(..., description="成本类别")
@@ -249,115 +281,163 @@ async def debug_info():
 @app.get("/reconnect-mongodb")
 async def reconnect_mongodb():
     """尝试重新连接MongoDB"""
-    global MONGODB_AVAILABLE, MONGODB_URI, CI_MODE
+    global MONGODB_AVAILABLE, MONGODB_URI
+    
+    # 在CI环境中不允许重连
+    if CI_ENVIRONMENT:
+        return {
+            "success": False,
+            "message": "在CI环境中不允许重新连接数据库"
+        }
     
     # 重新初始化连接
-    mongodb_info = init_mongodb_connection()
-    MONGODB_AVAILABLE = mongodb_info["available"]
-    MONGODB_URI = mongodb_info["uri"]
-    CI_MODE = mongodb_info.get("ci_mode", False)
+    new_info = init_mongodb_connection()
+    MONGODB_AVAILABLE = new_info["available"]
+    MONGODB_URI = new_info["uri"]
     
     return {
-        "timestamp": datetime.now().isoformat(),
+        "success": True,
         "mongodb_available": MONGODB_AVAILABLE,
-        "ci_mode": CI_MODE,
-        "message": "MongoDB重连成功" if MONGODB_AVAILABLE else "MongoDB重连失败"
+        "message": "MongoDB连接状态已更新"
+    }
+
+# 模拟数据生成函数
+def generate_mock_cost_data(merchant_id: str, start_date: date, end_date: date, depth: str):
+    """生成模拟的成本数据"""
+    # 使用商户ID作为随机种子，保证同一商户每次生成相同结果
+    random.seed(hash(merchant_id) % 10000)
+    
+    # 计算总成本 - 根据商户ID稍微变化一下
+    merchant_id_num = int(''.join([str(ord(c) % 10) for c in merchant_id[:3]]))
+    base_cost = 10000 + (merchant_id_num * 100)
+    variation = random.uniform(0.8, 1.2)
+    total_cost = base_cost * variation
+    
+    # 成本分类占比 - 根据不同商户有所变化
+    cost_categories = [
+        {"category": "人力成本", "percentage": 0.35 + random.uniform(-0.1, 0.1)},
+        {"category": "原材料", "percentage": 0.25 + random.uniform(-0.05, 0.05)},
+        {"category": "租金", "percentage": 0.15 + random.uniform(-0.05, 0.05)},
+        {"category": "水电费", "percentage": 0.08 + random.uniform(-0.02, 0.02)},
+        {"category": "营销费用", "percentage": 0.07 + random.uniform(-0.02, 0.02)},
+        {"category": "其他", "percentage": 0.10 + random.uniform(-0.03, 0.03)}
+    ]
+    
+    # 重新归一化百分比
+    total_percentage = sum(cat["percentage"] for cat in cost_categories)
+    for cat in cost_categories:
+        cat["percentage"] = cat["percentage"] / total_percentage
+        cat["amount"] = round(total_cost * cat["percentage"], 2)
+    
+    # 根据深度生成不同量级的优化建议
+    suggestion_count = {"basic": 2, "detailed": 4, "comprehensive": 6}
+    difficulty_levels = ["低", "中", "高"]
+    
+    suggestions = []
+    suggestion_templates = [
+        {"area": "人力资源", "base": "优化排班", "saving_factor": 0.08},
+        {"area": "供应链", "base": "集中采购原材料", "saving_factor": 0.1},
+        {"area": "租赁", "base": "重新协商租约", "saving_factor": 0.05},
+        {"area": "能源使用", "base": "采用节能设备", "saving_factor": 0.15},
+        {"area": "营销策略", "base": "精准营销投放", "saving_factor": 0.12},
+        {"area": "库存管理", "base": "优化库存水平", "saving_factor": 0.07},
+        {"area": "定价策略", "base": "动态定价模型", "saving_factor": 0.06},
+        {"area": "运营效率", "base": "流程自动化", "saving_factor": 0.09}
+    ]
+    
+    for i in range(min(suggestion_count.get(depth, 3), len(suggestion_templates))):
+        template = suggestion_templates[i]
+        category = next((c for c in cost_categories if template["area"] in c["category"]), cost_categories[i % len(cost_categories)])
+        
+        # 计算潜在节省
+        saving_factor = template["saving_factor"] * random.uniform(0.7, 1.3)
+        potential_saving = round(category["amount"] * saving_factor, 2)
+        
+        # 确定难度
+        difficulty = difficulty_levels[i % len(difficulty_levels)]
+        
+        suggestions.append({
+            "area": template["area"],
+            "suggestion": f"{template['base']}，可节省约{int(saving_factor*100)}%的{category['category']}",
+            "potential_saving": potential_saving,
+            "difficulty": difficulty,
+            "roi": f"{int(random.uniform(10, 30))}%",
+            "implementation_time": f"{int(random.uniform(1, 6))}个月"
+        })
+    
+    return {
+        "request_id": f"req-{merchant_id}-{int(datetime.now().timestamp())}",
+        "merchant_id": merchant_id,
+        "total_cost": round(total_cost, 2),
+        "cost_breakdown": cost_categories,
+        "optimization_suggestions": suggestions
     }
 
 @app.post("/api/v1/analyze", response_model=CostAnalysisResponse)
 async def analyze_cost(request: CostAnalysisRequest):
-    """
-    分析成本结构
-    
-    此API分析商户的成本结构，提供详细的成本占比和优化建议
-    """
+    """分析商户成本结构"""
     try:
-        logger.info(f"接收到成本分析请求: {request}")
-        request_id = f"req_cost_{str(uuid.uuid4())[:8]}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        
-        # 验证日期范围
+        # 验证日期范围合理性
         if request.end_date < request.start_date:
             raise HTTPException(status_code=400, detail="结束日期不能早于开始日期")
         
         # 验证分析深度参数
-        valid_depths = ["basic", "detailed", "comprehensive"]
-        if request.analysis_depth not in valid_depths:
-            raise HTTPException(status_code=400, detail=f"无效的分析深度参数，有效值: {', '.join(valid_depths)}")
+        valid_depths = ['basic', 'detailed', 'comprehensive']
+        if request.analysis_depth.lower() not in valid_depths:
+            raise HTTPException(status_code=400, detail="无效的分析深度参数")
         
-        # 检查MongoDB可用性
-        if not MONGODB_AVAILABLE:
-            logger.warning("MongoDB不可用，使用模拟数据")
+        # 记录分析请求
+        logger.info(f"收到成本分析请求: 商户={request.merchant_id}, 时间范围={request.start_date}至{request.end_date}, 深度={request.analysis_depth}")
         
-        # 模拟成本分析结果
-        total_cost = 152635.80
+        # 根据MongoDB可用性决定数据来源
+        if MONGODB_AVAILABLE and not CI_MODE:
+            # TODO: 实现真实数据分析逻辑
+            # 暂时使用模拟数据
+            logger.warning("虽然MongoDB可用，但尚未实现真实数据分析，使用模拟数据")
+            result = generate_mock_cost_data(
+                request.merchant_id,
+                request.start_date,
+                request.end_date,
+                request.analysis_depth
+            )
+        else:
+            # 使用模拟数据
+            logger.info("使用模拟数据进行分析")
+            result = generate_mock_cost_data(
+                request.merchant_id,
+                request.start_date,
+                request.end_date,
+                request.analysis_depth
+            )
         
-        # 模拟成本细分
-        cost_breakdown = [
-            CostCategory(category="labor", amount=58623.45, percentage=38.4),
-            CostCategory(category="raw_material", amount=42523.75, percentage=27.9),
-            CostCategory(category="utilities", amount=12458.90, percentage=8.2),
-            CostCategory(category="rent", amount=24000.00, percentage=15.7),
-            CostCategory(category="marketing", amount=15029.70, percentage=9.8)
-        ]
+        logger.info(f"成本分析完成: 商户={request.merchant_id}, 总成本={result['total_cost']}, 优化建议数={len(result['optimization_suggestions'])}")
+        return result
         
-        # 模拟优化建议
-        optimization_suggestions = [
-            {
-                "area": "labor",
-                "suggestion": "考虑优化人员排班，减少闲置时间",
-                "potential_saving": 4500.00,
-                "difficulty": "medium"
-            },
-            {
-                "area": "raw_material",
-                "suggestion": "与供应商重新谈判批量折扣",
-                "potential_saving": 3200.00,
-                "difficulty": "low"
-            },
-            {
-                "area": "utilities",
-                "suggestion": "投资节能设备减少能源消耗",
-                "potential_saving": 1800.00,
-                "difficulty": "high"
-            }
-        ]
-        
-        # 记录分析完成
-        logger.info(f"成本分析完成，请求ID: {request_id}")
-        
-        # 返回分析结果
-        return CostAnalysisResponse(
-            request_id=request_id,
-            merchant_id=request.merchant_id,
-            total_cost=total_cost,
-            cost_breakdown=cost_breakdown,
-            optimization_suggestions=optimization_suggestions
-        )
-    
     except HTTPException:
-        # 重新抛出HTTP异常
+        # 直接抛出HTTP异常
         raise
     except Exception as e:
-        logger.error(f"分析成本时发生错误: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")
+        logger.error(f"分析过程中出现错误: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"成本分析失败: {str(e)}")
 
 @app.on_event("startup")
 async def startup_event():
-    """应用启动时执行"""
-    logger.info("成本分析服务正在启动...")
-    # 记录环境信息
-    logger.info(f"环境: {os.getenv('ENVIRONMENT', 'production')}")
-    logger.info(f"调试模式: {DEBUG_MODE}")
-    logger.info(f"MongoDB可用: {MONGODB_AVAILABLE}")
-    logger.info(f"CI环境: {CI_ENVIRONMENT}")
-    logger.info(f"CI模式: {CI_MODE}")
-    logger.info(f"服务器主机名: {socket.gethostname()}")
-    logger.info(f"PYTHONPATH: {os.getenv('PYTHONPATH', '')}")
+    """应用启动时的初始化工作"""
+    logger.info("成本分析服务启动中...")
+    logger.info(f"环境信息: CI={CI_ENVIRONMENT}, DEBUG={DEBUG_MODE}, MongoDB可用={MONGODB_AVAILABLE}")
+    
+    # 创建必要目录
+    for dir_path in ["./data", "./output", "./logs"]:
+        Path(dir_path).mkdir(exist_ok=True)
+    
+    logger.info("成本分析服务已就绪")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """应用关闭时执行"""
+    """应用关闭时的清理工作"""
     logger.info("成本分析服务正在关闭...")
+    # 执行清理工作
+    logger.info("成本分析服务已关闭")
 
 if __name__ == "__main__":
     import uvicorn
