@@ -85,22 +85,18 @@ jobs:
             exit 1
           fi
       
-      - name: 安装测试依赖
+      - name: 安装测试依赖（带重试）
         run: |
           cd services/cost_analyzer
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple
           # 安装测试所需的包
-          pip install fastapi pytest pytest-asyncio httpx
-          # 安装requirements.txt中的所有依赖
-          pip install -r requirements.txt || { 
-            echo "标准安装失败，尝试逐个安装依赖";
-            while read -r line; do
-              if [[ $line =~ ^[a-zA-Z] ]]; then
-                echo "安装: $line"
-                pip install "$line" || echo "安装 $line 失败，但继续"
-              fi
-            done < requirements.txt
-          }
+          for i in 1 2 3; do
+            pip install fastapi pytest pytest-asyncio httpx -i https://pypi.tuna.tsinghua.edu.cn/simple && break || sleep 10
+          done
+          # 安装requirements.txt中的所有依赖，最多重试3次
+          for i in 1 2 3; do
+            pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple && break || sleep 10
+          done
       
       - name: 测试py文件语法检查
         continue-on-error: true  # 即使语法检查失败也继续执行
