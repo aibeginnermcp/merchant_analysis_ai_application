@@ -39,7 +39,7 @@ jobs:
     
     steps:
       - name: 检出代码
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0  # 获取完整历史记录，便于调试
 
@@ -57,7 +57,7 @@ jobs:
           env | grep -E "CI|GITHUB|MONGODB|DEBUG"
       
       - name: 设置Python环境
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: '3.9'
           cache: 'pip'  # 使用pip缓存加速依赖安装
@@ -225,7 +225,7 @@ jobs:
       
       - name: 上传日志和测试文件
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: cost-analyzer-logs
           path: |
