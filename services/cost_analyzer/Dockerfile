@@ -34,7 +34,8 @@ RUN if grep -q "[^a-zA-Z0-9>=<._\n\r -]" requirements.txt; then \
     fi
 
 # 安装依赖到用户目录
-RUN pip install --user --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r requirements.txt
 
 # 最终镜像阶段
 FROM python:3.9-slim
