@@ -225,7 +225,7 @@ jobs:
       
       - name: 上传日志和测试文件
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3.1.4
         with:
           name: cost-analyzer-logs
           path: |
