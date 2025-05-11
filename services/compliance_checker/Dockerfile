@@ -11,19 +11,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件
-COPY services/compliance_checker/requirements.txt .
+COPY requirements.txt .
 
-# 安装依赖到用户目录
-RUN pip install --user --no-cache-dir -r requirements.txt
+# 安装依赖到全局
+RUN pip install --no-cache-dir -r requirements.txt
 
-# 最终镜像阶段
-FROM python:3.9-slim
-
-# 设置工作目录
-WORKDIR /app
-
-# 复制构建阶段安装的依赖
-COPY --from=builder /root/.local /root/.local
+# 复制应用代码
+COPY . /app/
 
 # 安装运行时依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -31,14 +25,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置环境变量
-ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 ENV PORT=8003
-
-# 复制应用代码
-COPY services/compliance_checker /app/
 
 # 确保入口脚本有执行权限
 RUN chmod +x /app/entrypoint.sh

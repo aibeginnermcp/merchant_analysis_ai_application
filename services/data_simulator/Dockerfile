@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件
-COPY services/data_simulator/requirements.txt .
+COPY requirements.txt .
 
 # 安装依赖到用户目录
 RUN pip install --user --no-cache-dir -r requirements.txt
@@ -34,7 +34,7 @@ ENV PYTHONPATH=/app
 ENV PORT=8000
 
 # 复制应用代码
-COPY services/data_simulator /app/
+COPY . /app/
 
 # 确保入口脚本有执行权限
 RUN chmod +x /app/entrypoint.sh

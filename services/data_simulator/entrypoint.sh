@@ -57,4 +57,6 @@ else
     # 生产模式
     echo "🔒 以生产模式启动..."
     exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WORKERS:-1}
-fi 
+fi
+
+exec python main.py 

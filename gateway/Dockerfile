@@ -19,8 +19,6 @@ RUN apt-get update \
 # 开发阶段：安装所有依赖
 FROM base as development
 
-COPY pyproject.toml poetry.lock ./
-
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi
 
@@ -30,8 +28,6 @@ CMD ["poetry", "run", "uvicorn", "src.gateway.main:app", "--host", "0.0.0.0", "-
 
 # 构建阶段：安装生产依赖
 FROM base as builder
-
-COPY pyproject.toml poetry.lock ./
 
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-dev

@@ -16,8 +16,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.openapi.docs import get_swagger_ui_html
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
-import prometheus_client
-from prometheus_client import Counter, Histogram
+from services.api_gateway.core.monitoring import REQUEST_COUNT, REQUEST_LATENCY
 from typing import Dict, List, Optional, Union, Any
 
 # JWT相关配置
@@ -56,18 +55,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
-
-# 监控指标
-REQUEST_COUNT = Counter(
-    "api_gateway_request_count", 
-    "Number of requests received",
-    ["method", "endpoint", "status_code"]
-)
-REQUEST_LATENCY = Histogram(
-    "api_gateway_request_latency_seconds", 
-    "Request latency in seconds",
-    ["method", "endpoint"]
 )
 
 # OAuth2 scheme
@@ -175,7 +162,7 @@ async def metrics_middleware(request: Request, call_next):
         REQUEST_COUNT.labels(
             method=request.method, 
             endpoint=request.url.path, 
-            status_code=status_code
+            status=status_code
         ).inc()
         
         # 添加请求ID到响应头
@@ -423,7 +410,7 @@ def start():
     uvicorn.run(
         "services.api_gateway.main:app",
         host=os.environ.get("HOST", "0.0.0.0"),
-        port=int(os.environ.get("PORT", 8080)),
+        port=int(os.environ.get("PORT", 8000)),
         reload=os.environ.get("DEBUG", "false").lower() == "true",
         log_level="info"
     )

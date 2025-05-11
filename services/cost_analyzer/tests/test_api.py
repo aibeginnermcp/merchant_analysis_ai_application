@@ -127,7 +127,7 @@ def test_analyze_endpoint_invalid_depth():
         "start_date": "2023-01-01",
         "end_date": "2023-03-01",
         "analysis_depth": "invalid_depth"  # 无效的分析深度
-    }
+        }
     
     response = client.post(
         "/api/v1/analyze", 

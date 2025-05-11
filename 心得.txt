@@ -1,6 +1,0 @@
-心得：
-1、在本地项目上传到github上，出现了优化CI/CD工作流和服务Dockerfile，修复构建失败问题.
-A.这个把每个不行的文件和状态（fail、skip、cancel都需要copy一个个copy到cursor里，用##分隔开告诉cursor进行修复并重新上传
-B.A这个过程可能需要4次优化，每次只能修复成功2-3个分支
-
-解决方案：有可能的话希望打通cursor这种搭建AI应用的，在github上有报错的时候就返回报错的情况自动修复，直到github上没有报错。

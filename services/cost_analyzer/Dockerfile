@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件
-COPY services/cost_analyzer/requirements.txt .
+COPY requirements.txt .
 
 # 确保requirements.txt格式正确
 RUN if grep -q "[^a-zA-Z0-9>=<._\n\r -]" requirements.txt; then \
@@ -33,9 +33,9 @@ RUN if grep -q "[^a-zA-Z0-9>=<._\n\r -]" requirements.txt; then \
     sed -i 's/[^a-zA-Z0-9>=<._\n\r -]//g' requirements.txt; \
     fi
 
-# 安装依赖到用户目录
+# 安装依赖到全局（去除--user参数）
 RUN pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple
-RUN pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 最终镜像阶段
 FROM python:3.9-slim
@@ -61,9 +61,6 @@ ENV CI=$CI \
 # 设置工作目录
 WORKDIR /app
 
-# 复制构建阶段安装的依赖
-COPY --from=builder /root/.local /root/.local
-
 # 安装运行时必要的依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
@@ -71,7 +68,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制应用代码
-COPY services/cost_analyzer/ /app/
+COPY . /app/
 
 # 创建必要的目录
 RUN mkdir -p /app/data /app/output /app/logs

@@ -34,12 +34,6 @@ scrape_configs:
         services: ['cashflow_predictor']
     metrics_path: '/metrics'
 
-  - job_name: 'cost_analysis'
-    consul_sd_configs:
-      - server: 'consul:8500'
-        services: ['cost_analysis']
-    metrics_path: '/metrics'
-
   - job_name: 'node_exporter'
     static_configs:
       - targets: ['node-exporter:9100'] 

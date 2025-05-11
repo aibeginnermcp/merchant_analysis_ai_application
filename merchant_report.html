@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>商户经营分析报表</title>
+  <script>
+    function setLang(lang) {
+      document.querySelectorAll('[data-lang]').forEach(function(el) {
+        el.style.display = (el.getAttribute('data-lang') === lang) ? '' : 'none';
+      });
+      document.documentElement.lang = lang;
+    }
+    window.onload = function() { setLang('zh'); };
+  </script>
+  <style>
+    body { font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Arial", "sans-serif"; margin: 40px; background: #f8f9fa; }
+    h1 { color: #2c3e50; font-weight: bold; }
+    h2 { color: #2980b9; border-bottom: 1px solid #eee; padding-bottom: 4px; font-weight: bold; }
+    .section { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #eee; margin-bottom: 32px; padding: 24px; }
+    .summary { font-size: 1.1em; margin-bottom: 16px; }
+    .risk { color: #e67e22; }
+    .suggestion { color: #27ae60; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #f0f4f8; }
+    .footer { color: #888; font-size: 0.95em; margin-top: 40px; }
+    .industry-link { color: #2980b9; text-decoration: underline; cursor: pointer; }
+    .eval-good { color: #27ae60; }
+    .eval-bad { color: #e74c3c; }
+    .eval-mid { color: #f39c12; }
+    .lang-switch { position: fixed; top: 24px; right: 40px; z-index: 1000; }
+    .lang-switch button { margin-left: 8px; padding: 4px 12px; }
+  </style>
+</head>
+<body>
+  <div class="lang-switch">
+    <button onclick="setLang('zh')">中文</button>
+    <button onclick="setLang('en')">English</button>
+  </div>
+  <h1 data-lang="zh">商户经营分析报表</h1>
+  <h1 data-lang="en" style="display:none">Merchant Business Analysis Report</h1>
+  <div class="summary">
+    <span data-lang="zh">
+      <strong>商户类型：</strong>餐饮<br>
+      <strong>分析周期：</strong>2023-01-01 ~ 2023-03-31<br>
+      <strong>生成时间：</strong>2025-05-11 20:26
+    </span>
+    <span data-lang="en" style="display:none">
+      <strong>Merchant Type:</strong> Restaurant<br>
+      <strong>Analysis Period:</strong> 2023-01-01 ~ 2023-03-31<br>
+      <strong>Generated At:</strong> 2025-05-11 20:26
+    </span>
+  </div>
+
+  <div class="section">
+    <h2 data-lang="zh">1. 现金流预测</h2>
+    <h2 data-lang="en" style="display:none">1. Cashflow Forecast</h2>
+    <table>
+      <tr>
+        <th data-lang="zh">预测区间总现金流</th>
+        <th data-lang="en" style="display:none">Total Cashflow</th>
+        <td data-lang="zh">￥123,456</td>
+        <td data-lang="en" style="display:none">￥123,456</td>
+      </tr>
+      <tr>
+        <th data-lang="zh">未来30天现金流波动</th>
+        <th data-lang="en" style="display:none">Cashflow Fluctuation (Next 30 Days)</th>
+        <td data-lang="zh">较大（3月下旬）</td>
+        <td data-lang="en" style="display:none">Large (Late March)</td>
+      </tr>
+      <tr>
+        <th data-lang="zh">风险提示</th>
+        <th data-lang="en" style="display:none">Risk Alert</th>
+        <td data-lang="zh" class="risk">
+          3月下旬现金流波动较大，建议关注大额支出<br><b>原因：</b>本商户3月下旬现金流最低点为￥8,000，行业平均为￥12,000，低于行业均值33%。<br><a class="industry-link" href="生成行业模拟数据/output/cashflow_daily_cashflow_20250508_140029.html" target="_blank">点击查看行业平均明细数据</a>
+        </td>
+        <td data-lang="en" class="risk" style="display:none">
+          Large cashflow fluctuation in late March, pay attention to large expenses.<br><b>Reason:</b> Merchant's lowest cashflow in late March is ￥8,000, industry average is ￥12,000 (33% lower).<br><a class="industry-link" href="生成行业模拟数据/output/cashflow_daily_cashflow_20250508_140029.html" target="_blank">View industry average details</a>
+        </td>
+      </tr>
+    </table>
+    <!-- 修正后的折线图URL，已合法JSON并URL编码 -->
+    <img src="https://quickchart.io/chart?c=%7B%22type%22%3A%22line%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22Day1%22%2C%22Day5%22%2C%22Day10%22%2C%22Day15%22%2C%22Day20%22%2C%22Day25%22%2C%22Day30%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22%E6%9C%AC%E5%95%86%E6%88%B7%22%2C%22data%22%3A%5B12000%2C11000%2C9000%2C8000%2C9500%2C13000%2C14000%5D%2C%22borderColor%22%3A%22%232980b9%22%2C%22fill%22%3Afalse%7D%2C%7B%22label%22%3A%22%E8%A1%8C%E4%B8%9A%E5%B9%B3%E5%9D%87%22%2C%22data%22%3A%5B13000%2C12500%2C12000%2C12000%2C12500%2C13000%2C13500%5D%2C%22borderColor%22%3A%22%23e67e22%22%2C%22fill%22%3Afalse%7D%5D%7D%2C%22options%22%3A%7B%22scales%22%3A%7B%22yAxes%22%3A%5B%7B%22ticks%22%3A%7B%22beginAtZero%22%3Atrue%7D%7D%5D%7D%7D%7D" alt="未来30天现金流波动折线图" style="width:100%;max-width:600px;margin-top:12px;">
+  </div>
+
+  <div class="section">
+    <h2 data-lang="zh">2. 成本穿透分析</h2>
+    <h2 data-lang="en" style="display:none">2. Cost Structure Analysis</h2>
+    <table>
+      <tr>
+        <th data-lang="zh">成本项</th><th data-lang="en" style="display:none">Cost Item</th>
+        <th data-lang="zh">本商户占比</th><th data-lang="en" style="display:none">Merchant</th>
+        <th data-lang="zh">行业平均占比</th><th data-lang="en" style="display:none">Industry Avg</th>
+        <th data-lang="zh">评价</th><th data-lang="en" style="display:none">Evaluation</th>
+        <th data-lang="zh">优化建议</th><th data-lang="en" style="display:none">Suggestion</th>
+      </tr>
+      <tr>
+        <td data-lang="zh">原材料</td><td data-lang="en" style="display:none"></td><td data-lang="zh">45%</td><td data-lang="en" style="display:none">45%</td><td data-lang="zh">38%</td><td data-lang="en" style="display:none">38%</td><td class="eval-bad" data-lang="zh">偏高</td><td class="eval-bad" data-lang="en" style="display:none">High</td><td data-lang="zh">建议优化采购渠道，争取议价空间</td><td data-lang="en" style="display:none">Optimize procurement channels, seek better prices</td>
+      </tr>
+      <tr>
+        <td data-lang="zh">人工</td><td data-lang="en" style="display:none"></td><td data-lang="zh">30%</td><td data-lang="en" style="display:none">30%</td><td data-lang="zh">32%</td><td data-lang="en" style="display:none">32%</td><td class="eval-good" data-lang="zh">合理</td><td class="eval-good" data-lang="en" style="display:none">Reasonable</td><td data-lang="zh">维持现有排班，关注用工效率</td><td data-lang="en" style="display:none">Maintain current scheduling, focus on efficiency</td>
+      </tr>
+      <tr>
+        <td data-lang="zh">能耗及杂费</td><td data-lang="en" style="display:none"></td><td data-lang="zh">15%</td><td data-lang="en" style="display:none">15%</td><td data-lang="zh">18%</td><td data-lang="en" style="display:none">18%</td><td class="eval-good" data-lang="zh">优于行业</td><td class="eval-good" data-lang="en" style="display:none">Better than industry</td><td data-lang="zh">继续保持节能措施</td><td data-lang="en" style="display:none">Continue energy-saving measures</td>
+      </tr>
+      <tr>
+        <td data-lang="zh">其他</td><td data-lang="en" style="display:none"></td><td data-lang="zh">10%</td><td data-lang="en" style="display:none">10%</td><td data-lang="zh">12%</td><td data-lang="en" style="display:none">12%</td><td class="eval-mid" data-lang="zh">略低</td><td class="eval-mid" data-lang="en" style="display:none">Slightly low</td><td data-lang="zh">可适当增加市场推广投入</td><td data-lang="en" style="display:none">Consider increasing marketing investment</td>
+      </tr>
+    </table>
+    <div class="suggestion">
+      <span data-lang="zh"><strong>总体建议：</strong>重点关注原材料采购环节，提升议价能力。</span>
+      <span data-lang="en" style="display:none"><strong>Overall Suggestion:</strong> Focus on raw material procurement and improve bargaining power.</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 data-lang="zh">3. 合规检查</h2>
+    <h2 data-lang="en" style="display:none">3. Compliance Check</h2>
+    <table>
+      <tr>
+        <th data-lang="zh">合规得分</th>
+        <th data-lang="en" style="display:none">Compliance Score</th>
+        <td data-lang="zh">92/100</td>
+        <td data-lang="en" style="display:none">92/100</td>
+      </tr>
+      <tr>
+        <th data-lang="zh">主要风险点</th>
+        <th data-lang="en" style="display:none">Main Risks</th>
+        <td data-lang="zh">发票合规性、部分合同未归档</td>
+        <td data-lang="en" style="display:none">Invoice compliance, some contracts not archived</td>
+      </tr>
+      <tr>
+        <th data-lang="zh">整改建议</th>
+        <th data-lang="en" style="display:none">Rectification Suggestion</th>
+        <td data-lang="zh">完善合同归档流程，定期自查发票</td>
+        <td data-lang="en" style="display:none">Improve contract archiving, regular invoice self-check</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="footer">
+    <span data-lang="zh">本报表由智能商户经营分析平台自动生成 &copy; 2025</span>
+    <span data-lang="en" style="display:none">Report generated by Smart Merchant Analysis Platform &copy; 2025</span>
+  </div>
+</body>
+</html> 
